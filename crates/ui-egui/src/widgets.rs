@@ -75,7 +75,8 @@ pub fn menu_item(ui: &mut egui::Ui, label: &str, shortcut: &str) -> Response {
 pub fn section_title(ui: &mut egui::Ui, text: &str) {
     let t = Tokens::get(ui.ctx());
     ui.add_space(10.0);
-    ui.label(egui::RichText::new(text.to_uppercase()).font(theme::semibold(10.5)).color(t.text_faint).extra_letter_spacing(0.6));
+    // Section titles across every panel go through here, so one translation point covers them.
+    ui.label(egui::RichText::new(crate::i18n::tr(ui, text).to_uppercase()).font(theme::semibold(10.5)).color(t.text_faint).extra_letter_spacing(0.6));
     ui.add_space(2.0);
 }
 
@@ -129,12 +130,16 @@ pub fn artcraft_mark(ui: &mut egui::Ui, size: f32) -> Response {
 
 /// Buttons for every community link (`printcraft_engine::links`), Discord first and prominent.
 /// Returns the registry command of the one clicked.
-pub fn community_links(ui: &mut egui::Ui) -> Option<&'static str> {
+pub fn community_links(ui: &mut egui::Ui, language: crate::i18n::Language) -> Option<&'static str> {
     let mut clicked = None;
     ui.horizontal_wrapped(|ui| {
         ui.spacing_mut().item_spacing = vec2(8.0, 8.0);
         for (i, l) in printcraft_engine::links::LINKS.iter().enumerate() {
-            let resp = if i == 0 { icon_pill(ui, l.icon, "Join our Discord", true) } else { icon_pill(ui, l.icon, l.label, false) };
+            let resp = if i == 0 {
+                icon_pill(ui, l.icon, language.tr("Join our Discord"), true)
+            } else {
+                icon_pill(ui, l.icon, language.tr(l.label), false)
+            };
             if resp.on_hover_text(l.url).clicked() {
                 clicked = Some(l.command);
             }

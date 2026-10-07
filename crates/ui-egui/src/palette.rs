@@ -35,6 +35,7 @@ pub fn show(app: &mut PrintCraftApp, ctx: &egui::Context) {
         return;
     }
     let t = Tokens::get(ctx);
+    let language = app.language;
     if ctx.input(|i| i.key_pressed(egui::Key::Escape)) {
         app.palette_open = false;
         return;
@@ -45,13 +46,14 @@ pub fn show(app: &mut PrintCraftApp, ctx: &egui::Context) {
     let active = app.active_ids().map(|(_, id)| id);
     for spec in printcraft_engine::commands::COMMANDS {
         let label = printcraft_engine::commands::current_label(spec, &app.session, active);
-        if let Some(s) = score(&label, &q).or_else(|| score(spec.id, &q).map(|s| s + 50)) {
+        let translated = language.command_label(&label);
+        if let Some(s) = score(&translated, &q).or_else(|| score(&label, &q)).or_else(|| score(spec.id, &q).map(|s| s + 50)) {
             hits.push((
                 s,
                 Hit {
                     group: None,
-                    label,
-                    detail: spec.shortcut.map(|k| k.label(mac)).unwrap_or_else(|| spec.menu.unwrap_or("Command").to_string()),
+                    label: translated,
+                    detail: spec.shortcut.map(|k| k.label(mac)).unwrap_or_else(|| language.tr(spec.menu.unwrap_or("Command")).to_string()),
                     icon: spec.icon,
                     command: Some(spec.id),
                     ready: app.command_enabled(spec),
@@ -60,13 +62,13 @@ pub fn show(app: &mut PrintCraftApp, ctx: &egui::Context) {
         }
     }
     for g in TOOL_GROUPS {
-        if let Some(s) = score(g.label, &q) {
+        if let Some(s) = score(language.tr(g.label), &q).or_else(|| score(g.label, &q)) {
             hits.push((
                 s,
                 Hit {
                     group: Some(g.id),
-                    label: g.label.to_string(),
-                    detail: "Tool".into(),
+                    label: language.tr(g.label).to_string(),
+                    detail: language.tr("Tool").into(),
                     icon: g.icon,
                     command: None,
                     ready: g.availability == Availability::Ready,
@@ -78,13 +80,13 @@ pub fn show(app: &mut PrintCraftApp, ctx: &egui::Context) {
                 if printcraft_engine::commands::command(i.command).is_some() {
                     continue; // listed above as a command
                 }
-                if let Some(s) = score(i.label, &q).or_else(|| score(i.command, &q).map(|s| s + 50)) {
+                if let Some(s) = score(language.tr(i.label), &q).or_else(|| score(i.label, &q)).or_else(|| score(i.command, &q).map(|s| s + 50)) {
                     hits.push((
                         s + 1,
                         Hit {
                             group: Some(g.id),
-                            label: i.label.to_string(),
-                            detail: g.label.into(),
+                            label: language.tr(i.label).to_string(),
+                            detail: language.tr(g.label).into(),
                             icon: i.icon,
                             command: Some(i.command),
                             ready: i.availability == Availability::Ready,
@@ -110,7 +112,7 @@ pub fn show(app: &mut PrintCraftApp, ctx: &egui::Context) {
                     ui.add(icons::image("search", 18.0, t.text_muted));
                     let r = ui.add(
                         egui::TextEdit::singleline(&mut app.palette_query)
-                            .hint_text("Search tools and commands…")
+                            .hint_text(language.tr("Search tools and commands…"))
                             .frame(egui::Frame::NONE)
                             .font(theme::regular(15.0))
                             .desired_width(f32::INFINITY),
@@ -132,16 +134,19 @@ pub fn show(app: &mut PrintCraftApp, ctx: &egui::Context) {
                         ui.painter().rect_filled(rect, CornerRadius::same(6), t.hover);
                     }
                     icons::paint(ui, Rect::from_min_size(rect.min + vec2(8.0, 9.0), vec2(18.0, 18.0)), h.icon, 17.0, t.icon);
-                    resp.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, h.ready, &h.label));
+                    // Display is translated; matching above already considered both languages.
+                    let shown = language.command_label(&h.label);
+                    let shown_detail = crate::i18n::tr(ui, &h.detail).to_string();
+                    resp.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, h.ready, &shown));
                     let fg = if h.ready { t.text } else { t.text_faint };
-                    ui.painter().text(rect.left_center() + vec2(36.0, 0.0), Align2::LEFT_CENTER, &h.label, theme::regular(13.5), fg);
-                    ui.painter().text(rect.right_center() - vec2(10.0, 0.0), Align2::RIGHT_CENTER, &h.detail, theme::regular(12.0), t.text_faint);
+                    ui.painter().text(rect.left_center() + vec2(36.0, 0.0), Align2::LEFT_CENTER, shown, theme::regular(13.5), fg);
+                    ui.painter().text(rect.right_center() - vec2(10.0, 0.0), Align2::RIGHT_CENTER, shown_detail, theme::regular(12.0), t.text_faint);
                     if resp.clicked() {
                         chosen = Some((h.command, h.group));
                     }
                 }
                 if hits.is_empty() {
-                    ui.label(egui::RichText::new("No matching tools").color(t.text_muted));
+                    ui.label(egui::RichText::new(language.tr("No matching tools")).color(t.text_muted));
                 }
                 ui.add_space(2.0);
                 let _ = Stroke::NONE;

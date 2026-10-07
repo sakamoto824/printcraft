@@ -9804,10 +9804,10 @@ area = "N"
 tier = "P1"
 milestone = "M14"
 status = "partial"
-commands = []
+commands = ["app.preferences"]
 tools = []
-evidence = ["crates/ui-egui/src/i18n.rs::language_persists_and_invalid_input_keeps_current_language"]
-notes = "Preferences switches English/Japanese and persists; ui.set language en|ja and ui.state expose it. Core menu labels translated; broader dialog/panel translations and additional languages remain open."
+evidence = ["crates/ui-egui/src/i18n.rs::language_persists_and_invalid_input_keeps_current_language", "crates/ui-egui/src/i18n.rs::japanese_templates_keep_the_same_placeholders", "crates/ui-egui/tests/control.rs::japanese_controls_and_search_keep_command_ids", "crates/ui-egui/tests/control.rs::preferences_menu_and_shortcut_allow_switching_interface_languages", "crates/ui-egui/tests/control.rs::japanese_dialogs_diagnostics_and_custom_action_names"]
+notes = "Menu > Edit > Preferences and Command/Ctrl-comma switch English/Japanese and persist; ui.set language=en|ja and ui.state expose it. 1,830 translations cover commands, dialogs, panels, shortcuts, native pickers and known application/PDF-A diagnostics. User content, filenames, authors and custom action names remain intact; unknown OS/library details stay verbatim. Build with the existing craft-fonts input for Japanese glyphs. Additional languages and the full localization audit remain open."
 
 [[feature]]
 id = "misc.prefs-reading"
