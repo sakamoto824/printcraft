@@ -974,14 +974,14 @@ pub fn show(app: &mut PrintCraftApp, ctx: &egui::Context) {
                 });
             }
             Dialog::Shortcuts => {
-                ui.label(egui::RichText::new("Keyboard shortcuts").font(theme::semibold(18.0)));
+                ui.label(egui::RichText::new(app.language.tr("Keyboard shortcuts")).font(theme::semibold(18.0)));
                 ui.add_space(8.0);
                 let mac = cfg!(target_os = "macos") || cfg!(target_arch = "wasm32");
                 // Registered commands first (always in sync with the real bindings), then the
                 // keys the document view handles itself.
                 let mut rows: Vec<(String, String)> = printcraft_engine::commands::COMMANDS
                     .iter()
-                    .filter_map(|c| c.shortcut.map(|k| (k.label(mac), c.label.trim_end_matches('…').to_string())))
+                    .filter_map(|c| c.shortcut.map(|k| (k.label(mac), app.language.tr(c.label).trim_end_matches('…').to_string())))
                     .collect();
                 for (k, v) in [
                     ("⌘G / ⇧⌘G", "Next / previous match"),
@@ -999,7 +999,7 @@ pub fn show(app: &mut PrintCraftApp, ctx: &egui::Context) {
                     ("Delete", "Delete selected pages (Organize)"),
                     ("⌘A", "Select all pages (Organize)"),
                 ] {
-                    rows.push((k.to_string(), v.to_string()));
+                    rows.push((app.language.tr(k).to_string(), app.language.tr(v).to_string()));
                 }
                 egui::ScrollArea::vertical().max_height(460.0).show(ui, |ui| {
                     egui::Grid::new("keys").num_columns(2).spacing([24.0, 6.0]).show(ui, |ui| {
@@ -1075,7 +1075,7 @@ pub fn show(app: &mut PrintCraftApp, ctx: &egui::Context) {
                 if widgets::pill_button(ui, "Cancel", false).clicked() {
                     close = true;
                 }
-            } else if widgets::pill_button(ui, "Close", true).clicked() {
+            } else if widgets::pill_button(ui, app.language.tr("Close"), true).clicked() {
                 close = true;
             }
         });

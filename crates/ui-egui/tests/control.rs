@@ -107,6 +107,40 @@ fn traditional_chinese_controls_and_search_keep_command_ids() {
 }
 
 #[test]
+fn preferences_menu_and_shortcut_allow_switching_interface_languages() {
+    let (mut h, c) = harness();
+    ok(&mut h, &c, "ui.set", json!({ "key": "language", "value": "zh-TW" }));
+    ok(&mut h, &c, "ui.click", json!({ "label": "選單" }));
+    ok(&mut h, &c, "ui.click", json!({ "label": "編輯 ⏵" }));
+    let menu = ok(&mut h, &c, "ui.inspect", json!({ "query": "偏好設定…" }));
+    let prefs = menu["widgets"].as_array().unwrap().iter().find(|w| w["clickable"] == true).expect("Preferences menu item");
+    ok(&mut h, &c, "ui.click", json!({ "id": prefs["id"] }));
+    for (current, next, code) in [("繁體中文（台灣）", "English", "en"), ("English", "日本語", "ja"), ("日本語", "繁體中文（台灣）", "zh-tw")]
+    {
+        let selector = ok(&mut h, &c, "ui.inspect", json!({ "query": current }));
+        let combo = selector["widgets"].as_array().unwrap().iter().find(|w| w["role"] == "ComboBox").expect("language selector");
+        ok(&mut h, &c, "ui.click", json!({ "id": combo["id"] }));
+        ok(&mut h, &c, "ui.click", json!({ "label": next }));
+        assert_eq!(ok(&mut h, &c, "ui.state", json!({}))["language"], code);
+    }
+    ok(&mut h, &c, "ui.click", json!({ "label": "確定" }));
+    ok(&mut h, &c, "ui.key", json!({ "key": ",", "modifiers": ["command"] }));
+    let prefs = ok(&mut h, &c, "ui.inspect", json!({ "query": "介面語言" }));
+    assert!(prefs["count"].as_u64().unwrap() > 0, "{prefs}");
+    ok(&mut h, &c, "ui.click", json!({ "label": "確定" }));
+
+    ok(&mut h, &c, "ui.command", json!({ "id": "help.shortcuts" }));
+    for label in ["鍵盤快速鍵", "開啟", "偏好設定", "下一個／上一個符合項目", "滑鼠按兩下", "關閉"] {
+        let found = ok(&mut h, &c, "ui.inspect", json!({ "query": label }));
+        assert!(found["count"].as_u64().unwrap() > 0, "{label}: {found}");
+    }
+    let english = ok(&mut h, &c, "ui.inspect", json!({ "query": "Next / previous match" }));
+    assert_eq!(english["count"], 0);
+    ok(&mut h, &c, "ui.click", json!({ "label": "關閉" }));
+    assert_eq!(ok(&mut h, &c, "ui.state", json!({}))["documents"][0]["name"], "doc.pdf");
+}
+
+#[test]
 fn inspect_and_click_by_label_and_id() {
     let (mut h, c) = harness();
     let found = ok(&mut h, &c, "ui.inspect", json!({ "query": "read" }));
