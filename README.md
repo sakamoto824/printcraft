@@ -361,8 +361,10 @@ CRAFT_FONTS_DIR=../craft-fonts cargo run --release -p printcraft -- some.pdf
 ```
 
 Choose **Menu ▸ Edit ▸ Preferences… ▸ Interface language ▸ 繁體中文（台灣）** for Traditional Chinese
-(Taiwan). The choice is saved. The desktop shell, menus, home screen, tool catalogue and command
-palette and keyboard shortcuts reference are translated; other dialogs, panel contents and messages still fall back to English.
+(Taiwan). The choice is saved. The shell, menus, home screen, tool catalogue, command palette, keyboard shortcuts reference,
+dialogs, panels and application messages are translated. Filenames, document text, authors,
+and custom action names stay unchanged. Unknown operating-system and library diagnostics
+retain their original technical detail.
 Preferences also opens with **⌘,** on macOS or **Ctrl+,** elsewhere. Switching the language takes effect immediately.
 The palette accepts Chinese labels, English labels and stable command IDs. For automation or
 command-line startup, use `printcraft --language zh-tw some.pdf` or, for an app launched with

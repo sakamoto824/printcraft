@@ -148,7 +148,7 @@ impl PrintCraftApp {
         let settings = match self.print_draft.settings(doc.info.pages.len(), &labels) {
             Ok(s) => s,
             Err(e) => {
-                self.notify(e);
+                self.notify_error(e);
                 return false;
             }
         };
@@ -156,18 +156,22 @@ impl PrintCraftApp {
         let bytes = match self.session.print_pdf(id, &settings) {
             Ok(b) => b,
             Err(e) => {
-                self.notify(e.to_string());
+                self.notify_error(e);
                 return false;
             }
         };
         match self.print_draft.printer.clone() {
             Some(printer) => match spool::submit(&bytes, &self.print_draft.job(&name)) {
                 Ok(msg) => {
-                    self.notify(if msg.is_empty() { format!("Sent to {printer}") } else { format!("Sent to {printer}: {msg}") });
+                    self.notify(if msg.is_empty() {
+                        crate::i18n::tr_template(self.language, "Sent to {printer}", &[("printer", &printer)])
+                    } else {
+                        crate::i18n::tr_template(self.language, "Sent to {printer}: {msg}", &[("printer", &printer), ("msg", &msg)])
+                    });
                     true
                 }
                 Err(e) => {
-                    self.notify(e.to_string());
+                    self.notify_error(e);
                     false
                 }
             },
@@ -185,11 +189,11 @@ impl PrintCraftApp {
                 let Some(path) = path else { return false };
                 match std::fs::write(&path, &bytes) {
                     Ok(()) => {
-                        self.notify(format!("Saved the print-ready PDF to {}", path.display()));
+                        self.notify_fmt("Saved the print-ready PDF to {path}", &[("path", &path.display().to_string())]);
                         true
                     }
                     Err(e) => {
-                        self.notify(format!("Could not save: {e}"));
+                        self.notify_fmt("Could not save: {e}", &[("e", &e.to_string())]);
                         false
                     }
                 }
@@ -218,7 +222,7 @@ pub(crate) fn body(
     thumb: &dyn Fn(usize) -> Option<egui::TextureId>,
 ) -> (bool, bool) {
     ui.set_width(820.0);
-    ui.label(egui::RichText::new("Print").font(theme::semibold(18.0)));
+    ui.label(egui::RichText::new(crate::i18n::tr(ui, "Print")).font(theme::semibold(18.0)));
     ui.add_space(8.0);
     let settings = d.settings(sizes.len(), labels);
     let sheets = settings.as_ref().ok().and_then(|s| print::layout(sizes, s).ok()).unwrap_or_default();
@@ -228,33 +232,37 @@ pub(crate) fn body(
         ui.vertical(|ui| {
             ui.set_width(470.0);
             egui::Grid::new("print-top").num_columns(2).spacing([10.0, 8.0]).show(ui, |ui| {
-                ui.label("Printer:");
-                let shown = d.printer.clone().unwrap_or_else(|| "Save as PDF".into());
+                ui.label(crate::i18n::tr(ui, "Printer:"));
+                let shown = d.printer.clone().unwrap_or_else(|| crate::i18n::tr(ui, "Save as PDF").to_string());
                 egui::ComboBox::from_id_salt("printer").selected_text(shown).width(260.0).show_ui(ui, |ui| {
                     for p in &d.printers {
-                        let label = if p.default { format!("{} (default)", p.name) } else { p.name.clone() };
+                        let label = if p.default { crate::i18n::tr_fmt(ui, "{name} (default)", &[("name", &p.name)]) } else { p.name.clone() };
                         ui.selectable_value(&mut d.printer, Some(p.name.clone()), label);
                     }
-                    ui.selectable_value(&mut d.printer, None, "Save as PDF");
+                    ui.selectable_value(&mut d.printer, None, crate::i18n::tr(ui, "Save as PDF"));
                 });
                 ui.end_row();
-                ui.label("Copies:");
+                ui.label(crate::i18n::tr(ui, "Copies:"));
                 ui.horizontal(|ui| {
                     ui.add(egui::DragValue::new(&mut d.copies).range(1..=999));
-                    ui.checkbox(&mut d.collate, "Collate");
-                    ui.checkbox(&mut d.grayscale, "Print in grayscale");
+                    ui.checkbox(&mut d.collate, crate::i18n::tr(ui, "Collate"));
+                    ui.checkbox(&mut d.grayscale, crate::i18n::tr(ui, "Print in grayscale"));
                 });
                 ui.end_row();
-                ui.label("Two-sided:");
+                ui.label(crate::i18n::tr(ui, "Two-sided:"));
                 combo(
                     ui,
                     "duplex",
                     &mut d.duplex,
-                    &[(spool::Duplex::Off, "Off"), (spool::Duplex::LongEdge, "Flip on long edge"), (spool::Duplex::ShortEdge, "Flip on short edge")],
+                    &[
+                        (spool::Duplex::Off, crate::i18n::tr(ui, "Off")),
+                        (spool::Duplex::LongEdge, crate::i18n::tr(ui, "Flip on long edge")),
+                        (spool::Duplex::ShortEdge, crate::i18n::tr(ui, "Flip on short edge")),
+                    ],
                     160.0,
                 );
                 ui.end_row();
-                ui.label("Paper:");
+                ui.label(crate::i18n::tr(ui, "Paper:"));
                 egui::ComboBox::from_id_salt("paper").selected_text(PAPERS[d.paper].0).width(160.0).show_ui(ui, |ui| {
                     for (i, (name, _)) in PAPERS.iter().enumerate() {
                         ui.selectable_value(&mut d.paper, i, *name);
@@ -263,11 +271,11 @@ pub(crate) fn body(
                 ui.end_row();
             });
             ui.add_space(6.0);
-            widgets::section_title(ui, "Pages to Print");
+            widgets::section_title(ui, crate::i18n::tr(ui, "Pages to Print"));
             ui.horizontal(|ui| {
-                ui.radio_value(&mut d.which, Which::All, "All");
-                ui.radio_value(&mut d.which, Which::Current, "Current page");
-                ui.radio_value(&mut d.which, Which::Range, "Pages");
+                ui.radio_value(&mut d.which, Which::All, crate::i18n::tr(ui, "All"));
+                ui.radio_value(&mut d.which, Which::Current, crate::i18n::tr(ui, "Current page"));
+                ui.radio_value(&mut d.which, Which::Range, crate::i18n::tr(ui, "Pages"));
                 let r = ui.add_enabled(
                     d.which == Which::Range,
                     egui::TextEdit::singleline(&mut d.range).hint_text(format!("1-{}", sizes.len())).desired_width(110.0),
@@ -277,22 +285,29 @@ pub(crate) fn body(
                 }
             });
             ui.horizontal(|ui| {
-                ui.label("More options:");
+                ui.label(crate::i18n::tr(ui, "More options:"));
                 combo(
                     ui,
                     "subset",
                     &mut d.subset,
-                    &[(Subset::All, "All pages in range"), (Subset::Odd, "Odd pages only"), (Subset::Even, "Even pages only")],
+                    &[
+                        (Subset::All, crate::i18n::tr(ui, "All pages in range")),
+                        (Subset::Odd, crate::i18n::tr(ui, "Odd pages only")),
+                        (Subset::Even, crate::i18n::tr(ui, "Even pages only")),
+                    ],
                     150.0,
                 );
-                ui.checkbox(&mut d.reverse, "Reverse pages");
+                ui.checkbox(&mut d.reverse, crate::i18n::tr(ui, "Reverse pages"));
             });
             ui.add_space(6.0);
-            widgets::section_title(ui, "Page Sizing & Handling");
+            widgets::section_title(ui, crate::i18n::tr(ui, "Page Sizing & Handling"));
             ui.horizontal(|ui| {
-                for (h, label) in
-                    [(Handling::Size, "Size"), (Handling::Poster, "Poster"), (Handling::Multiple, "Multiple"), (Handling::Booklet, "Booklet")]
-                {
+                for (h, label) in [
+                    (Handling::Size, crate::i18n::tr(ui, "Size")),
+                    (Handling::Poster, crate::i18n::tr(ui, "Poster")),
+                    (Handling::Multiple, crate::i18n::tr(ui, "Multiple")),
+                    (Handling::Booklet, crate::i18n::tr(ui, "Booklet")),
+                ] {
                     if widgets::mode_tab(ui, label, d.handling == h).clicked() {
                         d.handling = h;
                         d.sheet = 0;
@@ -303,13 +318,13 @@ pub(crate) fn body(
             match d.handling {
                 Handling::Size => {
                     ui.horizontal(|ui| {
-                        ui.radio_value(&mut d.size, SizeMode::Fit, "Fit");
-                        ui.radio_value(&mut d.size, SizeMode::Actual, "Actual size");
-                        ui.radio_value(&mut d.size, SizeMode::Shrink, "Shrink oversized pages");
+                        ui.radio_value(&mut d.size, SizeMode::Fit, crate::i18n::tr(ui, "Fit"));
+                        ui.radio_value(&mut d.size, SizeMode::Actual, crate::i18n::tr(ui, "Actual size"));
+                        ui.radio_value(&mut d.size, SizeMode::Shrink, crate::i18n::tr(ui, "Shrink oversized pages"));
                     });
                     ui.horizontal(|ui| {
                         let custom = matches!(d.size, SizeMode::Custom(_));
-                        if ui.radio(custom, "Custom scale:").clicked() {
+                        if ui.radio(custom, crate::i18n::tr(ui, "Custom scale:")).clicked() {
                             d.size = SizeMode::Custom(d.custom_scale);
                         }
                         ui.add_enabled(custom, egui::DragValue::new(&mut d.custom_scale).range(1.0..=1000.0).suffix(" %"));
@@ -317,73 +332,79 @@ pub(crate) fn body(
                 }
                 Handling::Poster => {
                     ui.horizontal(|ui| {
-                        ui.label("Tile scale:");
+                        ui.label(crate::i18n::tr(ui, "Tile scale:"));
                         ui.add(egui::DragValue::new(&mut d.poster_scale).range(10.0..=1000.0).suffix(" %"));
-                        ui.label("Overlap:");
+                        ui.label(crate::i18n::tr(ui, "Overlap:"));
                         ui.add(egui::DragValue::new(&mut d.overlap).range(0.0..=144.0).suffix(" pt"));
-                        ui.checkbox(&mut d.cut_marks, "Cut marks");
+                        ui.checkbox(&mut d.cut_marks, crate::i18n::tr(ui, "Cut marks"));
                     });
                 }
                 Handling::Multiple => {
                     ui.horizontal(|ui| {
-                        ui.label("Pages per sheet:");
+                        ui.label(crate::i18n::tr(ui, "Pages per sheet:"));
                         combo(ui, "per-sheet", &mut d.per_sheet, &[(2, "2"), (4, "4"), (6, "6"), (9, "9"), (16, "16")], 60.0);
-                        ui.label("Page order:");
+                        ui.label(crate::i18n::tr(ui, "Page order:"));
                         combo(
                             ui,
                             "order",
                             &mut d.order,
                             &[
-                                (PageOrder::Horizontal, "Horizontal"),
-                                (PageOrder::HorizontalReversed, "Horizontal reversed"),
-                                (PageOrder::Vertical, "Vertical"),
-                                (PageOrder::VerticalReversed, "Vertical reversed"),
+                                (PageOrder::Horizontal, crate::i18n::tr(ui, "Horizontal")),
+                                (PageOrder::HorizontalReversed, crate::i18n::tr(ui, "Horizontal reversed")),
+                                (PageOrder::Vertical, crate::i18n::tr(ui, "Vertical")),
+                                (PageOrder::VerticalReversed, crate::i18n::tr(ui, "Vertical reversed")),
                             ],
                             150.0,
                         );
                     });
                     ui.horizontal(|ui| {
-                        ui.checkbox(&mut d.border, "Print page border");
-                        ui.checkbox(&mut d.auto_rotate, "Auto-rotate pages");
+                        ui.checkbox(&mut d.border, crate::i18n::tr(ui, "Print page border"));
+                        ui.checkbox(&mut d.auto_rotate, crate::i18n::tr(ui, "Auto-rotate pages"));
                     });
                 }
                 Handling::Booklet => {
                     ui.horizontal(|ui| {
-                        ui.label("Booklet subset:");
+                        ui.label(crate::i18n::tr(ui, "Booklet subset:"));
                         combo(
                             ui,
                             "booklet",
                             &mut d.booklet_subset,
                             &[
-                                (BookletSubset::BothSides, "Both sides"),
-                                (BookletSubset::FrontOnly, "Front side only"),
-                                (BookletSubset::BackOnly, "Back side only"),
+                                (BookletSubset::BothSides, crate::i18n::tr(ui, "Both sides")),
+                                (BookletSubset::FrontOnly, crate::i18n::tr(ui, "Front side only")),
+                                (BookletSubset::BackOnly, crate::i18n::tr(ui, "Back side only")),
                             ],
                             130.0,
                         );
-                        ui.label("Binding:");
-                        combo(ui, "binding", &mut d.binding, &[(Binding::Left, "Left"), (Binding::Right, "Right")], 80.0);
+                        ui.label(crate::i18n::tr(ui, "Binding:"));
+                        combo(
+                            ui,
+                            "binding",
+                            &mut d.binding,
+                            &[(Binding::Left, crate::i18n::tr(ui, "Left")), (Binding::Right, crate::i18n::tr(ui, "Right"))],
+                            80.0,
+                        );
                     });
                 }
             }
             ui.add_space(6.0);
             ui.horizontal(|ui| {
-                ui.label("Orientation:");
-                ui.radio_value(&mut d.orientation, Orientation::Auto, "Auto portrait/landscape");
-                ui.radio_value(&mut d.orientation, Orientation::Portrait, "Portrait");
-                ui.radio_value(&mut d.orientation, Orientation::Landscape, "Landscape");
+                ui.label(crate::i18n::tr(ui, "Orientation:"));
+                ui.radio_value(&mut d.orientation, Orientation::Auto, crate::i18n::tr(ui, "Auto portrait/landscape"));
+                ui.radio_value(&mut d.orientation, Orientation::Portrait, crate::i18n::tr(ui, "Portrait"));
+                ui.radio_value(&mut d.orientation, Orientation::Landscape, crate::i18n::tr(ui, "Landscape"));
             });
             ui.add_space(6.0);
-            widgets::section_title(ui, "Comments & Forms");
+            widgets::section_title(ui, crate::i18n::tr(ui, "Comments & Forms"));
             combo(
                 ui,
                 "content",
                 &mut d.content,
                 &[
-                    (Content::Document, "Document"),
-                    (Content::DocumentAndMarkups, "Document and markups"),
-                    (Content::DocumentAndStamps, "Document and stamps"),
-                    (Content::FormFieldsOnly, "Form fields only"),
+                    (Content::Document, crate::i18n::tr(ui, "Document")),
+                    (Content::DocumentAndMarkups, crate::i18n::tr(ui, "Document and markups")),
+                    (Content::DocumentAndStamps, crate::i18n::tr(ui, "Document and stamps")),
+                    (Content::FormFieldsOnly, crate::i18n::tr(ui, "Form fields only")),
                 ],
                 220.0,
             );
@@ -396,7 +417,10 @@ pub(crate) fn body(
             ui.painter().rect_filled(area, 6.0, t.hover);
             match (&settings, sheets.get(d.sheet)) {
                 (Err(e), _) => {
-                    ui.put(area.shrink(16.0), egui::Label::new(egui::RichText::new(e).color(t.text_muted)).wrap());
+                    ui.put(
+                        area.shrink(16.0),
+                        egui::Label::new(egui::RichText::new(crate::i18n::Language::get(ui.ctx()).diagnostic(e)).color(t.text_muted)).wrap(),
+                    );
                 }
                 (Ok(_), Some(sheet)) => {
                     let k = ((area.width() - 24.0) / sheet.size.0 as f32).min((area.height() - 24.0) / sheet.size.1 as f32);
@@ -461,11 +485,15 @@ pub(crate) fn body(
             }
             ui.horizontal(|ui| {
                 let n = sheets.len();
-                if ui.add_enabled(d.sheet > 0, egui::Button::new("‹")).on_hover_text("Previous sheet").clicked() {
+                if ui.add_enabled(d.sheet > 0, egui::Button::new("‹")).on_hover_text(crate::i18n::tr(ui, "Previous sheet")).clicked() {
                     d.sheet -= 1;
                 }
-                ui.label(if n == 0 { "No sheets".to_string() } else { format!("Sheet {} of {n}", d.sheet + 1) });
-                if ui.add_enabled(d.sheet + 1 < n, egui::Button::new("›")).on_hover_text("Next sheet").clicked() {
+                ui.label(if n == 0 {
+                    crate::i18n::tr(ui, "No sheets").to_string()
+                } else {
+                    crate::i18n::tr_fmt(ui, "Sheet {s} of {n}", &[("s", &(d.sheet + 1).to_string()), ("n", &n.to_string())])
+                });
+                if ui.add_enabled(d.sheet + 1 < n, egui::Button::new("›")).on_hover_text(crate::i18n::tr(ui, "Next sheet")).clicked() {
                     d.sheet += 1;
                 }
             });
@@ -482,7 +510,7 @@ pub(crate) fn body(
         if ui.add_enabled_ui(settings.is_ok() && !sheets.is_empty(), |ui| widgets::pill_button(ui, label, true)).inner.clicked() {
             go = true;
         }
-        if widgets::pill_button(ui, "Cancel", false).clicked() {
+        if widgets::pill_button(ui, crate::i18n::tr(ui, "Cancel"), false).clicked() {
             cancel = true;
         }
     });

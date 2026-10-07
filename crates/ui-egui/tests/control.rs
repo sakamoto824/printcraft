@@ -141,6 +141,45 @@ fn preferences_menu_and_shortcut_allow_switching_interface_languages() {
 }
 
 #[test]
+fn traditional_chinese_dialogs_diagnostics_and_custom_action_names() {
+    let (mut h, c) = harness();
+    ok(&mut h, &c, "ui.set", json!({"key": "language", "value": "zh-tw"}));
+    for (dialog, label) in [
+        ("properties", "文件內容"),
+        ("protect", "使用密碼保護"),
+        ("export-image", "匯出為圖片"),
+        ("optimize", "PDF 最佳化器"),
+        ("recognize-text", "辨識文字"),
+        ("accessibility-options", "無障礙檢驗器選項"),
+        ("js-console", "JavaScript 主控台"),
+        ("compare-files", "比較檔案"),
+        ("sign", "設定簽署用的數位 ID"),
+    ] {
+        ok(&mut h, &c, "ui.set", json!({"key": "dialog", "value": dialog}));
+        let found = ok(&mut h, &c, "ui.inspect", json!({"query": label}));
+        assert!(found["count"].as_u64().unwrap() > 0, "{dialog}: {found}");
+    }
+    ok(&mut h, &c, "ui.set", json!({"key": "dialog", "value": "none"}));
+    assert!(!h.state_mut().apply_edit(printcraft_engine::Edit::DeletePages { pages: vec![0, 1, 2, 3, 4] }));
+    let state = ok(&mut h, &c, "ui.state", json!({}));
+    assert_eq!(state["notice"], "刪除頁面失敗：文件至少必須保留一頁");
+    assert_eq!(ok(&mut h, &c, "ui.state", json!({}))["documents"][0]["name"], "doc.pdf");
+
+    h.state_mut().custom_actions.push(printcraft_engine::actions::Action {
+        name: "Save".to_string(),
+        description: "Print".to_string(),
+        steps: Vec::new(),
+        builtin: false,
+    });
+    h.state_mut().wizard.selected = Some("Save".to_string());
+    ok(&mut h, &c, "ui.set", json!({"key": "dialog", "value": "action-wizard"}));
+    for label in ["動作精靈", "Save", "Print"] {
+        let found = ok(&mut h, &c, "ui.inspect", json!({"query": label}));
+        assert!(found["widgets"].as_array().unwrap().iter().any(|w| w["label"] == label || w["value"] == label), "{found}");
+    }
+}
+
+#[test]
 fn inspect_and_click_by_label_and_id() {
     let (mut h, c) = harness();
     let found = ok(&mut h, &c, "ui.inspect", json!({ "query": "read" }));

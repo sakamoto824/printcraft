@@ -134,10 +134,13 @@ pub fn show(app: &mut PrintCraftApp, ctx: &egui::Context) {
                         ui.painter().rect_filled(rect, CornerRadius::same(6), t.hover);
                     }
                     icons::paint(ui, Rect::from_min_size(rect.min + vec2(8.0, 9.0), vec2(18.0, 18.0)), h.icon, 17.0, t.icon);
-                    resp.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, h.ready, &h.label));
+                    // Display is translated; matching above already considered both languages.
+                    let shown = language.command_label(&h.label);
+                    let shown_detail = crate::i18n::tr(ui, &h.detail).to_string();
+                    resp.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, h.ready, &shown));
                     let fg = if h.ready { t.text } else { t.text_faint };
-                    ui.painter().text(rect.left_center() + vec2(36.0, 0.0), Align2::LEFT_CENTER, &h.label, theme::regular(13.5), fg);
-                    ui.painter().text(rect.right_center() - vec2(10.0, 0.0), Align2::RIGHT_CENTER, &h.detail, theme::regular(12.0), t.text_faint);
+                    ui.painter().text(rect.left_center() + vec2(36.0, 0.0), Align2::LEFT_CENTER, shown, theme::regular(13.5), fg);
+                    ui.painter().text(rect.right_center() - vec2(10.0, 0.0), Align2::RIGHT_CENTER, shown_detail, theme::regular(12.0), t.text_faint);
                     if resp.clicked() {
                         chosen = Some((h.command, h.group));
                     }

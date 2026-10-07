@@ -9807,7 +9807,7 @@ status = "partial"
 commands = []
 tools = []
 evidence = ["crates/ui-egui/src/i18n.rs::language_persists_and_invalid_input_keeps_current_language", "crates/ui-egui/src/i18n.rs::traditional_chinese_codes_and_settings_round_trip", "crates/ui-egui/tests/control.rs::traditional_chinese_controls_and_search_keep_command_ids", "crates/ui-egui/tests/control.rs::preferences_menu_and_shortcut_allow_switching_interface_languages"]
-notes = "Preferences opens from Menu > Edit or command-comma, switches English/Japanese/Traditional Chinese (Taiwan) immediately and persists; ui.set language en|ja|zh-tw (alias zh-Hant) and ui.state expose it. Traditional Chinese covers the shell, core menus, home, tool catalogue, palette (Chinese/English/id search) and shortcuts reference. Broader dialogs, panel contents, messages and full web font coverage remain open; desktop Chinese labels need craft-fonts."
+notes = "Preferences opens from Menu > Edit or command-comma, switches English/Japanese/Traditional Chinese (Taiwan) immediately and persists; ui.set language en|ja|zh-tw (alias zh-Hant) and ui.state expose it. Traditional Chinese covers the shell, core menus, home, tool catalogue, palette (Chinese/English/id search) and shortcuts reference. Dialogs, panel contents, file-picker labels and application messages are localized; templates preserve opaque filenames/URLs and custom action names stay intact. Known application diagnostics translate at the UI boundary; external technical details and full web font coverage remain open. Desktop Chinese labels need craft-fonts."
 
 [[feature]]
 id = "misc.prefs-reading"

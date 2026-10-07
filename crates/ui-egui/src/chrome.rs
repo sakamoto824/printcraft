@@ -45,8 +45,8 @@ pub fn tab_strip(app: &mut PrintCraftApp, ui: &mut egui::Ui) {
                 }
                 ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                     let (icon, next, tip) = match app.theme {
-                        ThemeKind::Light => ("moon", ThemeKind::Dark, "Dark gray theme"),
-                        ThemeKind::Dark => ("sun", ThemeKind::Light, "Light theme"),
+                        ThemeKind::Light => ("moon", ThemeKind::Dark, crate::i18n::tr(ui, "Dark gray theme")),
+                        ThemeKind::Dark => ("sun", ThemeKind::Light, crate::i18n::tr(ui, "Light theme")),
                     };
                     if icons::button(ui, icon, 28.0, false, language.tr(tip)).clicked() {
                         let ctx = ui.ctx().clone();
@@ -101,12 +101,12 @@ fn tab(ui: &mut egui::Ui, t: &Tokens, name: &str, dirty: bool, active: bool, clo
     if x.clicked() {
         *close = Some(index);
     }
-    resp.on_hover_text(if dirty { format!("{name} — unsaved changes") } else { name.to_string() })
+    resp.on_hover_text(if dirty { crate::i18n::tr_fmt(ui, "{name} — unsaved changes", &[("name", name)]) } else { name.to_string() })
 }
 
 pub fn mode_bar(app: &mut PrintCraftApp, ui: &mut egui::Ui) {
-    let language = app.language;
     let t = Tokens::get(ui.ctx());
+    let language = app.language;
     egui::Panel::top("mode_bar")
         .exact_size(48.0)
         .frame(egui::Frame::NONE.fill(t.chrome).inner_margin(egui::Margin::symmetric(10, 0)).stroke(Stroke::new(1.0, t.divider)))
@@ -240,16 +240,16 @@ fn main_menu(app: &mut PrintCraftApp, ui: &mut egui::Ui) {
             });
             ui.menu_button(language.tr("Side panels"), |ui| {
                 for (p, label) in [
-                    (RightPanel::Comments, "Comments"),
-                    (RightPanel::Bookmarks, "Bookmarks"),
-                    (RightPanel::Pages, "Pages"),
-                    (RightPanel::Fields, "Fields"),
-                    (RightPanel::Layers, "Layers"),
-                    (RightPanel::Attachments, "Attachments"),
-                    (RightPanel::Signatures, "Signatures"),
-                    (RightPanel::Accessibility, "Accessibility Checker"),
-                    (RightPanel::Search, "Search"),
-                    (RightPanel::Compare, "Compare"),
+                    (RightPanel::Comments, language.tr("Comments")),
+                    (RightPanel::Bookmarks, language.tr("Bookmarks")),
+                    (RightPanel::Pages, language.tr("Pages")),
+                    (RightPanel::Fields, language.tr("Fields")),
+                    (RightPanel::Layers, language.tr("Layers")),
+                    (RightPanel::Attachments, language.tr("Attachments")),
+                    (RightPanel::Signatures, language.tr("Signatures")),
+                    (RightPanel::Accessibility, language.tr("Accessibility Checker")),
+                    (RightPanel::Search, language.tr("Search")),
+                    (RightPanel::Compare, language.tr("Compare")),
                 ] {
                     if ui.radio(app.right == Some(p), language.tr(label)).clicked() {
                         app.right = Some(p);

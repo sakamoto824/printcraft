@@ -86,10 +86,11 @@ fn tool_row(ui: &mut egui::Ui, t: &Tokens, language: crate::i18n::Language, g: &
     match (g.badge, g.availability) {
         (Some(b), _) => {
             let font = theme::semibold(9.5);
-            let w = ui.fonts_mut(|f| f.layout_no_wrap(b.to_string(), font.clone(), Color32::WHITE).size().x);
+            let badge = language.tr(b);
+            let w = ui.fonts_mut(|f| f.layout_no_wrap(badge.to_string(), font.clone(), Color32::WHITE).size().x);
             let r = Rect::from_center_size(rect.right_center() - vec2(w / 2.0 + 10.0, 0.0), vec2(w + 10.0, 16.0));
             ui.painter().rect_filled(r, CornerRadius::same(4), t.badge_new);
-            ui.painter().text(r.center(), Align2::CENTER_CENTER, b, font, Color32::WHITE);
+            ui.painter().text(r.center(), Align2::CENTER_CENTER, badge, font, Color32::WHITE);
         }
         // Planned tools: a quiet milestone hint instead of a chip, so the list stays calm.
         (None, Availability::Planned(m)) if resp.hovered() => {
@@ -180,7 +181,7 @@ fn tool_detail(app: &mut PrintCraftApp, ui: &mut egui::Ui, t: &Tokens, g: &'stat
                 );
                 ui.painter().text(rect.left_center() + vec2(34.0, 0.0), Align2::LEFT_CENTER, app.language.tr(item.label), theme::regular(13.0), fg);
                 let (chip, fill, cfg) = match item.availability {
-                    Availability::Ready => ("Ready", Color32::from_rgb(0xDD, 0xF3, 0xE4), Color32::from_rgb(0x1E, 0x7B, 0x43)),
+                    Availability::Ready => (crate::i18n::tr(ui, "Ready"), Color32::from_rgb(0xDD, 0xF3, 0xE4), Color32::from_rgb(0x1E, 0x7B, 0x43)),
                     Availability::Planned(m) => (m, t.pressed, t.text_muted),
                     Availability::Provider => ("AI", t.pressed, t.text_muted),
                 };
@@ -199,7 +200,14 @@ fn tool_detail(app: &mut PrintCraftApp, ui: &mut egui::Ui, t: &Tokens, g: &'stat
         ui.add_space(8.0);
         ui.horizontal(|ui| {
             if marks > 0 {
-                ui.label(egui::RichText::new(format!("{marks} mark{}", if marks == 1 { "" } else { "s" })).color(t.text_muted));
+                ui.label(
+                    egui::RichText::new(if marks == 1 {
+                        crate::i18n::tr_fmt(ui, "1 mark", &[])
+                    } else {
+                        crate::i18n::tr_fmt(ui, "{n} marks", &[("n", &marks.to_string())])
+                    })
+                    .color(t.text_muted),
+                );
             }
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 if ui.add_enabled_ui(marks > 0, |ui| widgets::pill_button(ui, app.language.tr("Redact all"), true)).inner.clicked() {
@@ -220,11 +228,13 @@ fn tool_detail(app: &mut PrintCraftApp, ui: &mut egui::Ui, t: &Tokens, g: &'stat
 /// page to place it.
 fn stamp_palette(app: &mut PrintCraftApp, ui: &mut egui::Ui, t: &Tokens) {
     use printcraft_engine::{StampGroup, StampKind};
-    ui.label(egui::RichText::new("Choose a stamp, then click on the page to place it.").small().color(t.text_faint));
+    ui.label(egui::RichText::new(crate::i18n::tr(ui, "Choose a stamp, then click on the page to place it.")).small().color(t.text_faint));
     egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
-        for (group, title) in
-            [(StampGroup::Dynamic, "Dynamic"), (StampGroup::SignHere, "Sign Here"), (StampGroup::StandardBusiness, "Standard Business")]
-        {
+        for (group, title) in [
+            (StampGroup::Dynamic, crate::i18n::tr(ui, "Dynamic")),
+            (StampGroup::SignHere, crate::i18n::tr(ui, "Sign Here")),
+            (StampGroup::StandardBusiness, crate::i18n::tr(ui, "Standard Business")),
+        ] {
             widgets::section_title(ui, title);
             for kind in StampKind::ALL.into_iter().filter(|k| k.group() == group) {
                 let active = app.quick_tool == crate::QuickTool::Stamp(kind);
@@ -421,7 +431,7 @@ pub fn right_panel(app: &mut PrintCraftApp, ui: &mut egui::Ui) {
                         ui.label(egui::RichText::new(c.to_string()).font(theme::medium(13.0)).color(t.text_faint));
                     }
                     ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                        if icons::button(ui, "x", 26.0, false, "Close").clicked() {
+                        if icons::button(ui, "x", 26.0, false, crate::i18n::tr(ui, "Close")).clicked() {
                             close = true;
                         }
                         // Right to left: close, "…", filter, search (Acrobat's order left to right).
@@ -429,7 +439,7 @@ pub fn right_panel(app: &mut PrintCraftApp, ui: &mut egui::Ui) {
                             panel_command = crate::comments_panel::header_controls(ui, info, view, doc.comments_hidden());
                         }
                         if panel == RightPanel::Comments
-                            && icons::button(ui, "search", 26.0, view.comments.search.is_some(), "Search comments").clicked()
+                            && icons::button(ui, "search", 26.0, view.comments.search.is_some(), crate::i18n::tr(ui, "Search comments")).clicked()
                         {
                             view.comments.search = match view.comments.search {
                                 Some(_) => None,
@@ -438,12 +448,14 @@ pub fn right_panel(app: &mut PrintCraftApp, ui: &mut egui::Ui) {
                             view.comments.search_focus = true;
                         }
                         if panel == RightPanel::Bookmarks && !info.outline.is_empty() {
-                            let more = icons::button(ui, "ellipsis", 26.0, false, "Bookmark options");
+                            let more = icons::button(ui, "ellipsis", 26.0, false, crate::i18n::tr(ui, "Bookmark options"));
                             egui::Popup::menu(&more).show(|ui| {
                                 ui.set_min_width(200.0);
-                                for (levels, label) in
-                                    [(usize::MAX, "Expand all bookmarks"), (1, "Expand top-level bookmarks"), (0, "Collapse all bookmarks")]
-                                {
+                                for (levels, label) in [
+                                    (usize::MAX, crate::i18n::tr(ui, "Expand all bookmarks")),
+                                    (1, crate::i18n::tr(ui, "Expand top-level bookmarks")),
+                                    (0, crate::i18n::tr(ui, "Collapse all bookmarks")),
+                                ] {
                                     if ui.button(label).clicked() {
                                         bm_expand = Some(levels);
                                         ui.close();
@@ -453,7 +465,7 @@ pub fn right_panel(app: &mut PrintCraftApp, ui: &mut egui::Ui) {
                         }
                         if panel == RightPanel::Bookmarks
                             && bm_editable
-                            && icons::button(ui, "bookmark-plus", 26.0, false, "New bookmark (⌘B)").clicked()
+                            && icons::button(ui, "bookmark-plus", 26.0, false, crate::i18n::tr(ui, "New bookmark (⌘B)")).clicked()
                         {
                             bm_action = Some(BmAction::New);
                         }
@@ -503,7 +515,10 @@ pub fn right_panel(app: &mut PrintCraftApp, ui: &mut egui::Ui) {
                             );
                             let fg = if l.visible { t.text } else { t.text_faint };
                             ui.painter().text(rect.left_center() + vec2(32.0, 0.0), Align2::LEFT_CENTER, &l.name, theme::regular(13.0), fg);
-                            if resp.on_hover_text(if l.visible { "Hide layer" } else { "Show layer" }).clicked() {
+                            if resp
+                                .on_hover_text(if l.visible { crate::i18n::tr(ui, "Hide layer") } else { crate::i18n::tr(ui, "Show layer") })
+                                .clicked()
+                            {
                                 toggle_layer = Some((li, !l.visible));
                             }
                         }
@@ -529,7 +544,12 @@ pub fn right_panel(app: &mut PrintCraftApp, ui: &mut egui::Ui) {
                                         ui.add(egui::Label::new(egui::RichText::new(&a.name).font(theme::medium(13.0))).truncate());
                                         let mut meta = a.size.map(human_size).unwrap_or_default();
                                         if let printcraft_render::AttachmentSource::Annotation { page, .. } = a.source {
-                                            meta = format!("{meta}  ·  on page {}", info.pages.get(page).map(|p| p.label.as_str()).unwrap_or("?"));
+                                            let on_page = crate::i18n::tr_fmt(
+                                                ui,
+                                                "on page {label}",
+                                                &[("label", info.pages.get(page).map(|p| p.label.as_str()).unwrap_or("?"))],
+                                            );
+                                            meta = format!("{meta}  ·  {on_page}");
                                         }
                                         if let Some(d) = &a.description {
                                             meta = format!("{meta}  ·  {d}");
@@ -537,11 +557,11 @@ pub fn right_panel(app: &mut PrintCraftApp, ui: &mut egui::Ui) {
                                         ui.add(egui::Label::new(egui::RichText::new(meta).color(t.text_faint).small()).truncate());
                                     });
                                     ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                                        if icons::button(ui, "file-down", 28.0, false, "Save attachment…").clicked() {
+                                        if icons::button(ui, "file-down", 28.0, false, crate::i18n::tr(ui, "Save attachment…")).clicked() {
                                             attachment_action = Some((ai, false));
                                         }
                                         if a.name.to_lowercase().ends_with(".pdf")
-                                            && icons::button(ui, "file-input", 28.0, false, "Open in a new tab").clicked()
+                                            && icons::button(ui, "file-input", 28.0, false, crate::i18n::tr(ui, "Open in a new tab")).clicked()
                                         {
                                             attachment_action = Some((ai, true));
                                         }
@@ -621,7 +641,8 @@ fn empty(ui: &mut egui::Ui, t: &Tokens, icon: &str, text: &str) {
     ui.vertical_centered(|ui| {
         ui.add(icons::image(icon, 36.0, t.text_faint));
         ui.add_space(8.0);
-        ui.label(egui::RichText::new(text).color(t.text_muted));
+        // Every empty-panel message goes through here.
+        ui.label(egui::RichText::new(crate::i18n::tr(ui, text)).color(t.text_muted));
     });
 }
 
@@ -727,20 +748,21 @@ fn outline_item(ui: &mut egui::Ui, t: &Tokens, info: &DocInfo, item: &OutlineIte
             let current = cx.current;
             resp.context_menu(|ui| {
                 let mut pick = |ui: &mut egui::Ui, label: &str, enabled: bool, a: BmAction| {
-                    if ui.add_enabled(enabled, egui::Button::new(label)).clicked() {
+                    if ui.add_enabled(enabled, egui::Button::new(crate::i18n::tr(ui, label))).clicked() {
                         *cx.action = Some(a);
                         ui.close();
                     }
                 };
-                pick(ui, "Rename", true, BmAction::StartRename(path.to_vec()));
-                pick(ui, &format!("Set to current page ({})", current + 1), true, BmAction::SetToCurrentPage(path.to_vec()));
+                pick(ui, crate::i18n::tr(ui, "Rename"), true, BmAction::StartRename(path.to_vec()));
+                let set_page = crate::i18n::tr_fmt(ui, "Set to current page ({n})", &[("n", &(current + 1).to_string())]);
+                pick(ui, &set_page, true, BmAction::SetToCurrentPage(path.to_vec()));
                 ui.separator();
-                pick(ui, "Move up", i > 0, BmAction::MoveUp(path.to_vec()));
-                pick(ui, "Move down", i + 1 < siblings, BmAction::MoveDown(path.to_vec()));
-                pick(ui, "Indent", i > 0, BmAction::Indent(path.to_vec()));
-                pick(ui, "Outdent", depth > 0, BmAction::Outdent(path.to_vec()));
+                pick(ui, crate::i18n::tr(ui, "Move up"), i > 0, BmAction::MoveUp(path.to_vec()));
+                pick(ui, crate::i18n::tr(ui, "Move down"), i + 1 < siblings, BmAction::MoveDown(path.to_vec()));
+                pick(ui, crate::i18n::tr(ui, "Indent"), i > 0, BmAction::Indent(path.to_vec()));
+                pick(ui, crate::i18n::tr(ui, "Outdent"), depth > 0, BmAction::Outdent(path.to_vec()));
                 ui.separator();
-                pick(ui, "Delete", true, BmAction::Delete(path.to_vec()));
+                pick(ui, crate::i18n::tr(ui, "Delete"), true, BmAction::Delete(path.to_vec()));
             });
         }
     }
@@ -759,7 +781,8 @@ fn pages(ui: &mut egui::Ui, t: &Tokens, info: &DocInfo, view: &crate::DocView, n
         ui.vertical_centered(|ui| {
             let h = w * p.height / p.width.max(1.0);
             let (rect, resp) = ui.allocate_exact_size(vec2(w + 16.0, h + 16.0), Sense::click());
-            resp.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, true, format!("Page {}", p.label)));
+            let info = crate::i18n::tr_fmt(ui, "Page {label}", &[("label", &p.label)]);
+            resp.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, true, info.clone()));
             let selected = i == view.current;
             if selected {
                 ui.painter().rect_filled(rect, CornerRadius::same(8), t.accent_soft);
@@ -805,13 +828,15 @@ fn fields(
     let mut ordered: Vec<_> = info.fields.iter().collect();
     ordered.sort_by_key(|f| (f.page, rank(&f.name)));
     if preparing {
-        ui.label(egui::RichText::new("Tab order: move a field with its arrows.").small().color(t.text_muted));
+        ui.label(egui::RichText::new(crate::i18n::tr(ui, "Tab order: move a field with its arrows.")).small().color(t.text_muted));
     }
     let mut pages: Vec<Option<usize>> = info.fields.iter().map(|f| f.page).collect();
     pages.sort();
     pages.dedup();
     for p in pages {
-        let label = p.map(|p| format!("Page {}", info.pages[p].label)).unwrap_or_else(|| "Unplaced".into());
+        let label = p
+            .map(|p| crate::i18n::tr_fmt(ui, "Page {label}", &[("label", &info.pages[p].label)]))
+            .unwrap_or_else(|| crate::i18n::tr(ui, "Unplaced").to_string());
         ui.add_space(4.0);
         ui.label(egui::RichText::new(label).font(theme::semibold(12.5)).color(t.text_muted));
         for f in ordered.iter().copied().filter(|f| f.page == p) {
@@ -836,18 +861,21 @@ fn fields(
                 let v: String = if v.chars().count() > 18 { format!("{}…", v.chars().take(17).collect::<String>()) } else { v.clone() };
                 ui.painter().text(rect.right_center() - vec2(8.0, 0.0), Align2::RIGHT_CENTER, v, theme::regular(11.5), t.text_faint);
             }
-            let mut tip = format!("{:?} field", f.kind);
+            let kind = format!("{:?}", f.kind);
+            let mut tip = crate::i18n::tr_fmt(ui, "{kind} field", &[("kind", crate::i18n::tr(ui, &kind))]);
             if let Some(tt) = &f.tooltip {
                 tip.push_str(&format!(" — {tt}"));
             }
             if f.has_actions {
-                tip.push_str("\nHas JavaScript actions (run in M6)");
+                tip.push_str(&format!("\n{}", crate::i18n::tr(ui, "Has JavaScript actions (run in M6)")));
             }
             if preparing && f.page.is_some() {
                 let up = Rect::from_center_size(rect.right_center() - vec2(44.0, 0.0), vec2(22.0, 22.0));
                 let down = Rect::from_center_size(rect.right_center() - vec2(20.0, 0.0), vec2(22.0, 22.0));
-                for (r, icon, earlier, tip) in [(up, "chevron-up", true, "Earlier in tab order"), (down, "chevron-down", false, "Later in tab order")]
-                {
+                for (r, icon, earlier, tip) in [
+                    (up, "chevron-up", true, crate::i18n::tr(ui, "Earlier in tab order")),
+                    (down, "chevron-down", false, crate::i18n::tr(ui, "Later in tab order")),
+                ] {
                     let b = ui.interact(r, ui.id().with((&f.name, earlier)), Sense::click());
                     b.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, true, format!("{tip}: {}", f.name)));
                     if b.hovered() {

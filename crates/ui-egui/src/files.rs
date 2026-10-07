@@ -109,7 +109,7 @@ impl PrintCraftApp {
     /// Ask for a PDF whose pages to insert after the selection (Organize ▸ Insert from file).
     pub fn insert_from_file_dialog(&mut self) {
         if self.active.is_none() {
-            self.notify("Open a document first");
+            self.notify_tr("Open a document first");
             return;
         }
         self.pick_files(FilePurpose::InsertPages, false);
@@ -126,7 +126,7 @@ impl PrintCraftApp {
                 match std::fs::read(&p) {
                     Ok(b) => files.push((name, b)),
                     Err(e) => {
-                        self.notify(format!("Couldn't read {name}: {e}"));
+                        self.notify_fmt("Couldn't read {name}: {e}", &[("name", &name), ("e", &e.to_string())]);
                         return;
                     }
                 }
@@ -182,7 +182,7 @@ impl PrintCraftApp {
 
     pub fn replace_pages_dialog(&mut self) {
         if self.active.is_none() {
-            self.notify("Open a document first");
+            self.notify_tr("Open a document first");
             return;
         }
         self.pick_files(FilePurpose::ReplacePages, false);
@@ -195,7 +195,7 @@ impl PrintCraftApp {
         let src_pages = match self.session.page_count_of(&name, &bytes) {
             Ok(n) => n,
             Err(e) => {
-                self.notify(format!("Couldn't use {name}: {e}"));
+                self.notify_fmt("Couldn't use {name}: {e}", &[("name", &name), ("e", &e.to_string())]);
                 return;
             }
         };
@@ -225,19 +225,26 @@ impl PrintCraftApp {
                 match self.session.extract(id, &[p]) {
                     Ok(bytes) => named.push((format!("{stem} (page {}).pdf", p + 1), bytes)),
                     Err(e) => {
-                        self.notify(format!("Couldn't extract pages: {e}"));
+                        self.notify_fmt("Couldn't extract pages: {e}", &[("e", &e.to_string())]);
                         return;
                     }
                 }
             }
-            if self.write_files(&named, "Choose a folder for the extracted pages") == 0 {
+            if self.write_files(&named, self.language.tr("Choose a folder for the extracted pages")) == 0 {
                 return;
             }
         } else {
             match self.session.extract(id, &pages) {
-                Ok(bytes) => self.open_created(&format!("{stem} (extract).pdf"), bytes, &format!("Extracted {} page(s)", pages.len())),
+                Ok(bytes) => {
+                    let message = if pages.len() == 1 {
+                        self.language.tr("Extracted 1 page").to_string()
+                    } else {
+                        crate::i18n::tr_template(self.language, "Extracted {n} pages", &[("n", &pages.len().to_string())])
+                    };
+                    self.open_created(&format!("{stem} (extract).pdf"), bytes, &message)
+                }
                 Err(e) => {
-                    self.notify(format!("Couldn't extract pages: {e}"));
+                    self.notify_fmt("Couldn't extract pages: {e}", &[("e", &e.to_string())]);
                     return;
                 }
             }
@@ -260,18 +267,22 @@ impl PrintCraftApp {
             let Some(dir) = dir else { return 0 };
             for (name, bytes) in named {
                 if let Err(e) = crate::editing::write_atomically(&dir.join(name).to_string_lossy(), bytes) {
-                    self.notify(format!("Couldn't write {name}: {e}"));
+                    self.notify_fmt("Couldn't write {name}: {e}", &[("name", name), ("e", &e.to_string())]);
                     return 0;
                 }
             }
-            self.notify(format!("Wrote {} file{} to {}", named.len(), if named.len() == 1 { "" } else { "s" }, dir.display()));
+            if named.len() == 1 {
+                self.notify_fmt("Wrote 1 file to {dir}", &[("dir", &dir.display().to_string())]);
+            } else {
+                self.notify_fmt("Wrote {n} files to {dir}", &[("n", &named.len().to_string()), ("dir", &dir.display().to_string())]);
+            }
         }
         #[cfg(target_arch = "wasm32")]
         {
             let _ = title;
             for (name, bytes) in named {
                 if let Err(e) = crate::editing::download(name, bytes) {
-                    self.notify(format!("Couldn't download {name}: {e}"));
+                    self.notify_fmt("Couldn't download {name}: {e}", &[("name", name), ("e", &e.to_string())]);
                     return 0;
                 }
             }
@@ -292,7 +303,7 @@ impl PrintCraftApp {
         };
         let pages = printcraft_engine::filter_pages(&doc.info, &base, d.parity, d.orientation);
         if pages.is_empty() {
-            self.notify("No pages match those choices");
+            self.notify_tr("No pages match those choices");
             return;
         }
         self.apply_edit(printcraft_engine::Edit::RotatePages { pages, degrees: d.degrees });
@@ -315,7 +326,7 @@ impl PrintCraftApp {
         let parts = match parts {
             Ok(p) => p,
             Err(e) => {
-                self.notify(format!("Couldn't split: {e}"));
+                self.notify_fmt("Couldn't split: {e}", &[("e", &e.to_string())]);
                 return 0;
             }
         };
@@ -343,7 +354,7 @@ impl PrintCraftApp {
             self.session.get(id).map(|d| std::path::Path::new(&d.name).file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default());
         match self.session.summarize_comments(id, self.summary_sort) {
             Ok(bytes) => self.open_created(&format!("Summary of comments on {}.pdf", stem.unwrap_or_default()), bytes, "Created a comment summary"),
-            Err(e) => self.notify(format!("Couldn't summarize comments: {e}")),
+            Err(e) => self.notify_fmt("Couldn't summarize comments: {e}", &[("e", &e.to_string())]),
         }
     }
 
@@ -353,9 +364,9 @@ impl PrintCraftApp {
                 let Some(doc) = self.session.get(id) else { return };
                 self.views.push(crate::DocView::new(id, &doc.info));
                 self.active = Some(self.views.len() - 1);
-                self.notify(message);
+                self.notify_tr(message);
             }
-            Err(e) => self.notify(format!("Couldn't open the result: {e}")),
+            Err(e) => self.notify_fmt("Couldn't open the result: {e}", &[("e", &e.to_string())]),
         }
     }
 }
@@ -373,8 +384,8 @@ impl PrintCraftApp {
                 Some(p) if [".xfdf", ".fdf", ".xml", ".csv", ".txt"].iter().any(|e| p.ends_with(e)) => Some(std::path::PathBuf::from(p)),
                 Some(_) => None,
                 None => rfd::FileDialog::new()
-                    .add_filter("Comment and form data", &["xfdf", "fdf", "xml", "csv", "txt"])
-                    .set_title("Import data")
+                    .add_filter(self.language.tr("Comment and form data").to_string(), &["xfdf", "fdf", "xml", "csv", "txt"])
+                    .set_title(self.language.tr("Import data").to_string())
                     .pick_file(),
             };
             let Some(path) = picked else { return };
@@ -383,11 +394,11 @@ impl PrintCraftApp {
                     let name = path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
                     self.apply_edit(printcraft_engine::Edit::ImportData { name, bytes: std::sync::Arc::new(bytes) });
                 }
-                Err(e) => self.notify(format!("Couldn't read {}: {e}", path.display())),
+                Err(e) => self.notify_fmt("Couldn't read {name}: {e}", &[("name", &path.display().to_string()), ("e", &e.to_string())]),
             }
         }
         #[cfg(target_arch = "wasm32")]
-        self.notify("Importing data arrives on the web with file pickers for data files");
+        self.notify_tr("Importing data arrives on the web with file pickers for data files");
     }
 
     /// Export all comments / form data: the format follows the file name's extension.
@@ -403,20 +414,20 @@ impl PrintCraftApp {
             let path = match self.save_override.clone() {
                 Some(p) => Some(std::path::PathBuf::from(p)),
                 None => rfd::FileDialog::new()
-                    .set_title("Export")
+                    .set_title(self.language.tr("Export").to_string())
                     .add_filter(ext.to_uppercase(), &[ext])
                     .set_file_name(format!("{stem}.{ext}"))
                     .save_file(),
             };
             let Some(path) = path else { return };
             match crate::editing::write_atomically(&path.to_string_lossy(), &bytes) {
-                Ok(()) => self.notify(format!("Exported to {}", path.display())),
-                Err(e) => self.notify(format!("Couldn't write {}: {e}", path.display())),
+                Ok(()) => self.notify_fmt("Exported to {path}", &[("path", &path.display().to_string())]),
+                Err(e) => self.notify_fmt("Couldn't write {name}: {e}", &[("name", &path.display().to_string()), ("e", &e.to_string())]),
             }
         }
         #[cfg(target_arch = "wasm32")]
         if let Err(e) = crate::editing::download(&format!("{stem}.{ext}"), &bytes) {
-            self.notify(e);
+            self.notify_error(e);
         }
     }
 
@@ -426,8 +437,8 @@ impl PrintCraftApp {
         #[cfg(not(target_arch = "wasm32"))]
         {
             let paths = rfd::FileDialog::new()
-                .set_title("Select data files to merge")
-                .add_filter("Form data and PDF forms", &["fdf", "xfdf", "pdf"])
+                .set_title(self.language.tr("Select data files to merge").to_string())
+                .add_filter(self.language.tr("Form data and PDF forms").to_string(), &["fdf", "xfdf", "pdf"])
                 .pick_files()
                 .unwrap_or_default();
             let mut files = Vec::new();
@@ -435,7 +446,7 @@ impl PrintCraftApp {
                 let name = p.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
                 match std::fs::read(&p) {
                     Ok(b) => files.push((name, b)),
-                    Err(e) => return self.notify(format!("Couldn't read {name}: {e}")),
+                    Err(e) => return self.notify_fmt("Couldn't read {name}: {e}", &[("name", &name), ("e", &e.to_string())]),
                 }
             }
             if !files.is_empty() {
@@ -443,25 +454,35 @@ impl PrintCraftApp {
             }
         }
         #[cfg(target_arch = "wasm32")]
-        self.notify("Merging data files needs the desktop app");
+        self.notify_tr("Merging data files needs the desktop app");
     }
 
     /// Merge the given data files and save the spreadsheet (asks where; `save_override` in tests).
     pub fn merge_data_files(&mut self, files: Vec<(String, Vec<u8>)>) {
         let csv = match printcraft_engine::merge_data_files(&files) {
             Ok(c) => c,
-            Err(e) => return self.notify(e),
+            Err(e) => return self.notify_error(e),
         };
         #[cfg(not(target_arch = "wasm32"))]
         {
             let path = match self.save_override.clone() {
                 Some(p) => Some(std::path::PathBuf::from(p)),
-                None => rfd::FileDialog::new().set_title("Save the spreadsheet").add_filter("CSV", &["csv"]).set_file_name("report.csv").save_file(),
+                None => rfd::FileDialog::new()
+                    .set_title(self.language.tr("Save the spreadsheet").to_string())
+                    .add_filter("CSV", &["csv"])
+                    .set_file_name("report.csv")
+                    .save_file(),
             };
             let Some(path) = path else { return };
             match crate::editing::write_atomically(&path.to_string_lossy(), csv.as_bytes()) {
-                Ok(()) => self.notify(format!("Merged {} file{} into {}", files.len(), if files.len() == 1 { "" } else { "s" }, path.display())),
-                Err(e) => self.notify(format!("Couldn't write {}: {e}", path.display())),
+                Ok(()) => {
+                    if files.len() == 1 {
+                        self.notify_fmt("Merged 1 file into {path}", &[("path", &path.display().to_string())]);
+                    } else {
+                        self.notify_fmt("Merged {n} files into {path}", &[("n", &files.len().to_string()), ("path", &path.display().to_string())]);
+                    }
+                }
+                Err(e) => self.notify_fmt("Couldn't write {name}: {e}", &[("name", &path.display().to_string()), ("e", &e.to_string())]),
             }
         }
         #[cfg(target_arch = "wasm32")]
@@ -477,9 +498,8 @@ impl PrintCraftApp {
             let path = match self.save_override.clone() {
                 Some(p) => Some(std::path::PathBuf::from(p)),
                 None => {
-                    let d = rfd::FileDialog::new()
-                        .set_title(if comments { "Export comments" } else { "Export form data" })
-                        .set_file_name(format!("{stem}.xfdf"));
+                    let title = if comments { self.language.tr("Export comments") } else { self.language.tr("Export form data") };
+                    let d = rfd::FileDialog::new().set_title(title).set_file_name(format!("{stem}.xfdf"));
                     let d = if comments {
                         d.add_filter("XFDF", &["xfdf"]).add_filter("FDF", &["fdf"])
                     } else {
@@ -487,7 +507,7 @@ impl PrintCraftApp {
                             .add_filter("FDF", &["fdf"])
                             .add_filter("XML", &["xml"])
                             .add_filter("CSV", &["csv"])
-                            .add_filter("Text", &["txt"])
+                            .add_filter(self.language.tr("Text").to_string(), &["txt"])
                     };
                     d.save_file()
                 }
@@ -497,10 +517,10 @@ impl PrintCraftApp {
             let format = printcraft_engine::DataFormat::from_extension(&ext).unwrap_or(printcraft_engine::DataFormat::Xfdf);
             match self.session.export_data(id, format, comments, fields) {
                 Ok(bytes) => match crate::editing::write_atomically(&path.to_string_lossy(), &bytes) {
-                    Ok(()) => self.notify(format!("Exported to {}", path.display())),
-                    Err(e) => self.notify(format!("Couldn't write {}: {e}", path.display())),
+                    Ok(()) => self.notify_fmt("Exported to {path}", &[("path", &path.display().to_string())]),
+                    Err(e) => self.notify_fmt("Couldn't write {name}: {e}", &[("name", &path.display().to_string()), ("e", &e.to_string())]),
                 },
-                Err(e) => self.notify(e.to_string()),
+                Err(e) => self.notify_error(e),
             }
         }
         #[cfg(target_arch = "wasm32")]
@@ -508,7 +528,7 @@ impl PrintCraftApp {
             Ok(bytes) => {
                 let _ = crate::editing::download(&format!("{stem}.xfdf"), &bytes);
             }
-            Err(e) => self.notify(e.to_string()),
+            Err(e) => self.notify_error(e),
         }
     }
 }

@@ -1,7 +1,14 @@
 //! Interface translations. Command ids, document text and file names remain stable.
 //! Untranslated labels fall back to English so coverage can grow incrementally.
 
+mod errors;
 mod zh_tw;
+
+use std::collections::HashMap;
+use std::sync::LazyLock;
+
+static JAPANESE_INDEX: LazyLock<HashMap<&'static str, &'static str>> = LazyLock::new(|| JAPANESE.iter().copied().collect());
+static TRADITIONAL_INDEX: LazyLock<HashMap<&'static str, &'static str>> = LazyLock::new(|| zh_tw::TRANSLATIONS.iter().copied().collect());
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -36,10 +43,39 @@ impl Language {
     pub fn tr(self, text: &str) -> &str {
         let translations = match self {
             Self::En => return text,
-            Self::Ja => JAPANESE,
-            Self::ZhTw => zh_tw::TRANSLATIONS,
+            Self::Ja => &*JAPANESE_INDEX,
+            Self::ZhTw => &*TRADITIONAL_INDEX,
         };
-        translations.iter().find(|(english, _)| *english == text).map_or(text, |(_, translated)| *translated)
+        translations.get(text).copied().unwrap_or(text)
+    }
+
+    /// Keep the frame's language available to dialog bodies without passing application state.
+    pub fn get(ctx: &egui::Context) -> Self {
+        ctx.data(|data| data.get_temp::<Self>(egui::Id::new("printcraft-language"))).unwrap_or_default()
+    }
+
+    pub fn store(self, ctx: &egui::Context) {
+        ctx.data_mut(|data| data.insert_temp(egui::Id::new("printcraft-language"), self));
+    }
+
+    /// Translate known application diagnostics at the UI boundary. Unknown library or OS
+    /// details remain intact, and captured filenames/field names are never translated.
+    pub fn diagnostic(self, message: &str) -> String {
+        if self == Self::En {
+            return message.to_owned();
+        }
+        let translated = self.tr(message);
+        if translated != message {
+            return translated.to_owned();
+        }
+        for template in errors::TEMPLATES {
+            if self.tr(template) != *template
+                && let Some(values) = diagnostic_values(template, message)
+            {
+                return tr_template(self, template, &values);
+            }
+        }
+        message.to_owned()
     }
 
     /// Translate the history prefix only on command labels, never on document text.
@@ -51,6 +87,79 @@ impl Language {
         }
         self.tr(text).to_string()
     }
+}
+
+/// Resolve before `widget_info` callbacks: those callbacks run under the context write lock.
+pub fn tr<'a>(ui: &egui::Ui, text: &'a str) -> &'a str {
+    Language::get(ui.ctx()).tr(text)
+}
+
+pub fn tr_fmt(ui: &egui::Ui, template: &str, args: &[(&str, &str)]) -> String {
+    tr_template(Language::get(ui.ctx()), template, args)
+}
+
+/// Substitute once in the translated template. Inserted filenames, URLs and other values
+/// are opaque, even when they contain text resembling another placeholder.
+pub fn tr_template(language: Language, template: &str, args: &[(&str, &str)]) -> String {
+    let mut out = String::new();
+    let mut chars = language.tr(template).chars().peekable();
+    while let Some(c) = chars.next() {
+        if c == '{' && chars.peek() == Some(&'{') {
+            chars.next();
+            out.push('{');
+        } else if c == '}' && chars.peek() == Some(&'}') {
+            chars.next();
+            out.push('}');
+        } else if c == '{' {
+            let mut field = String::new();
+            while chars.peek().is_some_and(|c| *c != '}') {
+                if let Some(c) = chars.next() {
+                    field.push(c);
+                }
+            }
+            let closed = chars.next().is_some();
+            if closed && let Some((_, value)) = args.iter().find(|(key, _)| *key == field) {
+                if field == "e" {
+                    out.push_str(&language.diagnostic(value));
+                } else {
+                    out.push_str(value);
+                }
+            } else {
+                out.push('{');
+                out.push_str(&field);
+                if closed {
+                    out.push('}');
+                }
+            }
+        } else {
+            out.push(c);
+        }
+    }
+    out
+}
+
+fn diagnostic_values<'a>(template: &'a str, message: &'a str) -> Option<Vec<(&'a str, &'a str)>> {
+    let mut values = Vec::new();
+    let mut template = template;
+    let mut message = message;
+    while let Some((prefix, tail)) = template.split_once('{') {
+        message = message.strip_prefix(prefix)?;
+        let (field, tail) = tail.split_once('}')?;
+        let delimiter = tail.split('{').next().unwrap_or_default();
+        let (value, remainder) = if delimiter.is_empty() {
+            if !tail.is_empty() {
+                return None;
+            }
+            (message, "")
+        } else {
+            let end = if tail.contains('{') { message.find(delimiter)? } else { message.len().checked_sub(delimiter.len())? };
+            (message.get(..end)?, message.get(end..)?)
+        };
+        values.push((field, value));
+        template = tail;
+        message = remainder;
+    }
+    (template == message).then_some(values)
 }
 
 const JAPANESE: &[(&str, &str)] = &[
@@ -110,6 +219,47 @@ mod tests {
     use super::*;
 
     #[test]
+    fn templates_preserve_opaque_values_reordering_and_literal_braces() {
+        let args = [("name", "報告 {e}.pdf"), ("e", "the password is incorrect")];
+        assert_eq!(tr_template(Language::ZhTw, "Couldn't open {name}: {e}", &args), "無法開啟報告 {e}.pdf：密碼不正確");
+        assert_eq!(tr_template(Language::En, "Couldn't open {name}: {e}", &args), "Couldn't open 報告 {e}.pdf: the password is incorrect");
+        assert_eq!(tr_template(Language::En, "{e}: {name}", &args), "the password is incorrect: 報告 {e}.pdf");
+        assert_eq!(tr_template(Language::En, "{{name}} {name} {unknown} {", &args), "{name} 報告 {e}.pdf {unknown} {");
+    }
+
+    #[test]
+    fn diagnostics_preserve_field_names_unknown_details_and_english() {
+        let input = "there is no field named \"File {e}\"";
+        assert_eq!(Language::ZhTw.diagnostic(input), "找不到名稱為 \"File {e}\" 的欄位");
+        assert_eq!(Language::En.diagnostic(input), input);
+        assert_eq!(Language::ZhTw.diagnostic("page 17 does not exist"), "第 17 頁不存在");
+        assert_eq!(Language::ZhTw.diagnostic("page 17 does not exists"), "page 17 does not exists");
+        assert_eq!(Language::ZhTw.diagnostic("unknown OS diagnostic: /tmp/File.pdf"), "unknown OS diagnostic: /tmp/File.pdf");
+        assert_eq!(Language::ZhTw.diagnostic("there is no comment 4 on page 2"), "第 2 頁沒有第 4 則註解");
+    }
+
+    #[test]
+    fn traditional_templates_keep_the_same_placeholders() {
+        fn fields(text: &str) -> Vec<&str> {
+            let mut found = Vec::new();
+            let mut tail = text;
+            while let Some((_, rest)) = tail.split_once('{') {
+                let Some((key, rest)) = rest.split_once('}') else { break };
+                found.push(key);
+                tail = rest;
+            }
+            found.sort_unstable();
+            found
+        }
+        for (english, translated) in zh_tw::TRANSLATIONS {
+            assert_eq!(fields(english), fields(translated), "template changed its arguments: {english}");
+        }
+        for template in errors::TEMPLATES {
+            assert_ne!(Language::ZhTw.tr(template), *template, "missing diagnostic: {template}");
+        }
+    }
+
+    #[test]
     fn translations_are_unique_and_preserve_unknown_text() {
         for translations in [JAPANESE, zh_tw::TRANSLATIONS] {
             for (i, (en, translated)) in translations.iter().enumerate() {
@@ -154,6 +304,7 @@ mod tests {
         use egui::epaint::text::{Fonts, TextOptions};
         let mut fonts = Fonts::new(TextOptions::default(), crate::theme::font_definitions());
         let labels = zh_tw::TRANSLATIONS.iter().map(|(_, translated)| *translated).chain([Language::ZhTw.name()]).collect::<String>();
+        let labels: String = labels.chars().filter(|c| !c.is_control()).collect();
         for id in [egui::FontId::proportional(13.0), egui::FontId::monospace(13.0), crate::theme::medium(13.0), crate::theme::semibold(17.0)] {
             assert!(fonts.has_glyphs(&id, &labels), "{id:?} lacks a Traditional Chinese label glyph");
         }
