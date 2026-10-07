@@ -34,16 +34,16 @@ pub fn left_panel(app: &mut PrintCraftApp, ui: &mut egui::Ui) {
         });
 }
 
-fn panel_header(ui: &mut egui::Ui, t: &Tokens, title: &str, back: bool) -> (bool, bool) {
+fn panel_header(ui: &mut egui::Ui, t: &Tokens, language: crate::i18n::Language, title: &str, back: bool) -> (bool, bool) {
     let mut go_back = false;
     let mut close = false;
     ui.horizontal(|ui| {
-        if back && icons::button(ui, "chevron-left", 26.0, false, "Back to all tools").clicked() {
+        if back && icons::button(ui, "chevron-left", 26.0, false, language.tr("Back to all tools")).clicked() {
             go_back = true;
         }
-        ui.label(egui::RichText::new(title).font(theme::semibold(15.5)).color(t.text));
+        ui.label(egui::RichText::new(language.tr(title)).font(theme::semibold(15.5)).color(t.text));
         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-            if icons::button(ui, "x", 26.0, false, "Close panel").clicked() {
+            if icons::button(ui, "x", 26.0, false, language.tr("Close panel")).clicked() {
                 close = true;
             }
         });
@@ -53,33 +53,36 @@ fn panel_header(ui: &mut egui::Ui, t: &Tokens, title: &str, back: bool) -> (bool
 }
 
 fn all_tools(app: &mut PrintCraftApp, ui: &mut egui::Ui, t: &Tokens) {
-    let (_, close) = panel_header(ui, t, "All tools", false);
+    let (_, close) = panel_header(ui, t, app.language, "All tools", false);
     if close {
         app.left_open = false;
     }
     egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
         let shown = if app.all_tools_expanded { TOOL_GROUPS.len() } else { COLLAPSED_TOOLS.min(TOOL_GROUPS.len()) };
         for g in &TOOL_GROUPS[..shown] {
-            if tool_row(ui, t, g).clicked() {
+            if tool_row(ui, t, app.language, g).clicked() {
                 app.left = LeftPanel::Tool(g.id);
             }
         }
         ui.add_space(4.0);
         let more = if app.all_tools_expanded { "View less" } else { "View more" };
-        if ui.add(egui::Label::new(egui::RichText::new(more).color(t.accent_text).font(theme::medium(13.0))).sense(Sense::click())).clicked() {
+        if ui
+            .add(egui::Label::new(egui::RichText::new(app.language.tr(more)).color(t.accent_text).font(theme::medium(13.0))).sense(Sense::click()))
+            .clicked()
+        {
             app.all_tools_expanded = !app.all_tools_expanded;
         }
     });
 }
 
-fn tool_row(ui: &mut egui::Ui, t: &Tokens, g: &ToolGroup) -> egui::Response {
+fn tool_row(ui: &mut egui::Ui, t: &Tokens, language: crate::i18n::Language, g: &ToolGroup) -> egui::Response {
     let (rect, resp) = ui.allocate_exact_size(vec2(ui.available_width(), 34.0), Sense::click());
-    resp.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, true, g.label));
+    resp.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, true, language.tr(g.label)));
     if resp.hovered() {
         ui.painter().rect_filled(rect, CornerRadius::same(6), t.hover);
     }
     icons::paint(ui, Rect::from_min_size(rect.min + vec2(6.0, 7.0), vec2(20.0, 20.0)), g.icon, 19.0, hue(g));
-    ui.painter().text(rect.left_center() + vec2(36.0, 0.0), Align2::LEFT_CENTER, g.label, theme::regular(13.5), t.text);
+    ui.painter().text(rect.left_center() + vec2(36.0, 0.0), Align2::LEFT_CENTER, language.tr(g.label), theme::regular(13.5), t.text);
     match (g.badge, g.availability) {
         (Some(b), _) => {
             let font = theme::semibold(9.5);
@@ -93,7 +96,7 @@ fn tool_row(ui: &mut egui::Ui, t: &Tokens, g: &ToolGroup) -> egui::Response {
             ui.painter().text(
                 rect.right_center() - vec2(10.0, 0.0),
                 Align2::RIGHT_CENTER,
-                format!("Planned · {m}"),
+                format!("{} · {m}", language.tr("Planned")),
                 theme::medium(10.5),
                 t.text_faint,
             );
@@ -101,15 +104,15 @@ fn tool_row(ui: &mut egui::Ui, t: &Tokens, g: &ToolGroup) -> egui::Response {
         _ => {}
     }
     let tip = match g.availability {
-        Availability::Ready => "Available".to_string(),
-        Availability::Planned(m) => format!("Planned for milestone {m} — open to see what it will include"),
-        Availability::Provider => "Optional: needs an AI provider you configure".into(),
+        Availability::Ready => language.tr("Available").to_string(),
+        Availability::Planned(m) => format!("{} {m} — {}", language.tr("Planned for milestone"), language.tr("open to see what it will include")),
+        Availability::Provider => language.tr("Optional: needs an AI provider you configure").into(),
     };
     resp.on_hover_text(tip)
 }
 
 fn tool_detail(app: &mut PrintCraftApp, ui: &mut egui::Ui, t: &Tokens, g: &'static ToolGroup) {
-    let (back, close) = panel_header(ui, t, g.label, true);
+    let (back, close) = panel_header(ui, t, app.language, g.label, true);
     if back {
         app.left = LeftPanel::AllTools;
         app.mode = crate::Mode::AllTools;
@@ -121,7 +124,9 @@ fn tool_detail(app: &mut PrintCraftApp, ui: &mut egui::Ui, t: &Tokens, g: &'stat
         egui::Frame::NONE.fill(t.accent_soft).corner_radius(CornerRadius::same(8)).inner_margin(egui::Margin::same(10)).show(ui, |ui| {
             ui.set_width(ui.available_width());
             ui.label(
-                egui::RichText::new(format!("Coming in milestone {m}. Items marked Ready work today.")).color(t.text).font(theme::regular(12.0)),
+                egui::RichText::new(format!("{} {m}. {}", app.language.tr("Coming in milestone"), app.language.tr("Items marked Ready work today.")))
+                    .color(t.text)
+                    .font(theme::regular(12.0)),
             );
         });
     }
@@ -134,7 +139,10 @@ fn tool_detail(app: &mut PrintCraftApp, ui: &mut egui::Ui, t: &Tokens, g: &'stat
     if g.id == "form" {
         ui.horizontal(|ui| {
             let label = if app.form_preview { "Edit fields" } else { "Preview" };
-            if widgets::pill_button(ui, label, app.form_preview).on_hover_text("Try the form as people filling it in will see it").clicked() {
+            if widgets::pill_button(ui, app.language.tr(label), app.form_preview)
+                .on_hover_text(app.language.tr("Try the form as people filling it in will see it"))
+                .clicked()
+            {
                 app.form_preview = !app.form_preview;
                 if app.form_preview {
                     app.quick_tool = crate::QuickTool::Select;
@@ -154,10 +162,10 @@ fn tool_detail(app: &mut PrintCraftApp, ui: &mut egui::Ui, t: &Tokens, g: &'stat
     let list_h = if footer { (ui.available_height() - 52.0).max(80.0) } else { ui.available_height() };
     egui::ScrollArea::vertical().auto_shrink([false, false]).max_height(list_h).show(ui, |ui| {
         for s in g.sections {
-            widgets::section_title(ui, s.title);
+            widgets::section_title(ui, app.language.tr(s.title));
             for item in s.items {
                 let (rect, resp) = ui.allocate_exact_size(vec2(ui.available_width(), 34.0), Sense::click());
-                resp.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, true, item.label));
+                resp.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, true, app.language.tr(item.label)));
                 let ready = item.availability == Availability::Ready;
                 if resp.hovered() {
                     ui.painter().rect_filled(rect, CornerRadius::same(6), t.hover);
@@ -170,17 +178,17 @@ fn tool_detail(app: &mut PrintCraftApp, ui: &mut egui::Ui, t: &Tokens, g: &'stat
                     17.0,
                     if ready { hue(g) } else { t.text_faint },
                 );
-                ui.painter().text(rect.left_center() + vec2(34.0, 0.0), Align2::LEFT_CENTER, item.label, theme::regular(13.0), fg);
+                ui.painter().text(rect.left_center() + vec2(34.0, 0.0), Align2::LEFT_CENTER, app.language.tr(item.label), theme::regular(13.0), fg);
                 let (chip, fill, cfg) = match item.availability {
                     Availability::Ready => ("Ready", Color32::from_rgb(0xDD, 0xF3, 0xE4), Color32::from_rgb(0x1E, 0x7B, 0x43)),
                     Availability::Planned(m) => (m, t.pressed, t.text_muted),
                     Availability::Provider => ("AI", t.pressed, t.text_muted),
                 };
                 let font = theme::semibold(9.5);
-                let w = ui.fonts_mut(|f| f.layout_no_wrap(chip.to_string(), font.clone(), cfg).size().x);
+                let w = ui.fonts_mut(|f| f.layout_no_wrap(app.language.tr(chip).to_string(), font.clone(), cfg).size().x);
                 let r = Rect::from_center_size(rect.right_center() - vec2(w / 2.0 + 10.0, 0.0), vec2(w + 10.0, 16.0));
                 ui.painter().rect_filled(r, CornerRadius::same(4), fill);
-                ui.painter().text(r.center(), Align2::CENTER_CENTER, chip, font, cfg);
+                ui.painter().text(r.center(), Align2::CENTER_CENTER, app.language.tr(chip), font, cfg);
                 if resp.on_hover_text(item.command).clicked() {
                     run = Some(item.command);
                 }
@@ -194,10 +202,10 @@ fn tool_detail(app: &mut PrintCraftApp, ui: &mut egui::Ui, t: &Tokens, g: &'stat
                 ui.label(egui::RichText::new(format!("{marks} mark{}", if marks == 1 { "" } else { "s" })).color(t.text_muted));
             }
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                if ui.add_enabled_ui(marks > 0, |ui| widgets::pill_button(ui, "Redact all", true)).inner.clicked() {
+                if ui.add_enabled_ui(marks > 0, |ui| widgets::pill_button(ui, app.language.tr("Redact all"), true)).inner.clicked() {
                     run = Some("redact.apply");
                 }
-                if ui.add_enabled_ui(marks > 0, |ui| widgets::pill_button(ui, "Clear all", false)).inner.clicked() {
+                if ui.add_enabled_ui(marks > 0, |ui| widgets::pill_button(ui, app.language.tr("Clear all"), false)).inner.clicked() {
                     run = Some("redact.clear");
                 }
             });
@@ -356,6 +364,7 @@ pub(crate) enum Nav {
 }
 
 pub fn right_panel(app: &mut PrintCraftApp, ui: &mut egui::Ui) {
+    let language = app.language;
     let t = Tokens::get(ui.ctx());
     let Some((index, id)) = app.active_ids() else { return };
     let Some(panel) = app.right else { return };
@@ -407,7 +416,7 @@ pub fn right_panel(app: &mut PrintCraftApp, ui: &mut egui::Ui) {
                     RightPanel::Compare => ("Compare", compare.as_ref().filter(|c| c.new == id).map(|c| c.result.changes.len())),
                 };
                 ui.horizontal(|ui| {
-                    ui.label(egui::RichText::new(title).font(theme::semibold(15.5)));
+                    ui.label(egui::RichText::new(language.tr(title)).font(theme::semibold(15.5)));
                     if let Some(c) = count {
                         ui.label(egui::RichText::new(c.to_string()).font(theme::medium(13.0)).color(t.text_faint));
                     }

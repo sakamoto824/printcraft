@@ -251,11 +251,11 @@ pub(crate) fn preferences_body(ui: &mut egui::Ui, app: &mut PrintCraftApp, t: &T
             app.session.set_javascript(on);
         }
         ui.label(
-            egui::RichText::new("Scripts run in a sandbox without file or network access. With JavaScript off, Acrobat's standard format, validate and calculate functions still work.")
+            egui::RichText::new(app.language.tr("Scripts run in a sandbox without file or network access. With JavaScript off, Acrobat's standard format, validate and calculate functions still work."))
                 .small()
                 .color(t.text_muted),
         );
     });
     ui.add_space(10.0);
-    buttons(ui, "OK", &[]).is_some()
+    buttons(ui, app.language.tr("OK"), &[]).is_some()
 }

@@ -80,6 +80,33 @@ fn state_and_view_options() {
 }
 
 #[test]
+fn traditional_chinese_controls_and_search_keep_command_ids() {
+    let (mut h, c) = harness();
+    ok(&mut h, &c, "ui.set", json!({ "key": "language", "value": "zh-TW" }));
+    assert_eq!(ok(&mut h, &c, "ui.state", json!({}))["language"], "zh-tw");
+    ok(&mut h, &c, "ui.click", json!({ "label": "閱讀" }));
+    assert_eq!(ok(&mut h, &c, "ui.state", json!({}))["mode"], "Read");
+
+    ok(&mut h, &c, "ui.command", json!({ "id": "app.preferences" }));
+    let prefs = ok(&mut h, &c, "ui.inspect", json!({ "query": "介面語言" }));
+    assert!(prefs["count"].as_u64().unwrap() > 0, "{prefs}");
+    ok(&mut h, &c, "ui.click", json!({ "label": "確定" }));
+
+    for (query, translated) in [("整理", "整理頁面"), ("Split document", "分割文件…"), ("page.split", "分割文件…")] {
+        ok(&mut h, &c, "ui.command", json!({ "id": "view.palette" }));
+        ok(&mut h, &c, "ui.type", json!({ "text": query }));
+        let hits = ok(&mut h, &c, "ui.inspect", json!({ "query": translated }));
+        assert!(hits["count"].as_u64().unwrap() > 0, "{query}: {hits}");
+        ok(&mut h, &c, "ui.key", json!({ "key": "Escape" }));
+        h.state_mut().palette_query.clear();
+    }
+    assert_eq!(ok(&mut h, &c, "ui.state", json!({}))["documents"][0]["name"], "doc.pdf");
+    ok(&mut h, &c, "ui.set", json!({ "key": "language", "value": "en" }));
+    ok(&mut h, &c, "ui.click", json!({ "label": "All tools" }));
+    assert_eq!(ok(&mut h, &c, "ui.state", json!({}))["mode"], "AllTools");
+}
+
+#[test]
 fn inspect_and_click_by_label_and_id() {
     let (mut h, c) = harness();
     let found = ok(&mut h, &c, "ui.inspect", json!({ "query": "read" }));

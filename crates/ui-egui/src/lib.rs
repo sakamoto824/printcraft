@@ -915,7 +915,7 @@ impl PrintCraftApp {
         let view = self.active.and_then(|i| self.views.get_mut(i));
         match (key, view) {
             ("language", _) => {
-                self.language = i18n::Language::parse(value).ok_or("language must be en or ja")?;
+                self.language = i18n::Language::parse(value).ok_or("language must be en, ja, zh-tw or zh-hant")?;
             }
             ("theme", _) => {
                 self.follow_system_theme = value == "system";

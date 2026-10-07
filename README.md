@@ -360,6 +360,18 @@ git clone https://github.com/storytold/craft-fonts ../craft-fonts
 CRAFT_FONTS_DIR=../craft-fonts cargo run --release -p printcraft -- some.pdf
 ```
 
+Choose **Preferences ▸ Interface language ▸ 繁體中文（台灣）** for Traditional Chinese
+(Taiwan). The choice is saved. The desktop shell, menus, home screen, tool catalogue and command
+palette are translated; other dialogs, panel contents and messages still fall back to English.
+The palette accepts Chinese labels, English labels and stable command IDs. For automation or
+command-line startup, use `printcraft --language zh-tw some.pdf` or, for an app launched with
+`--control /tmp/pc.json`, `printcraft-cli ui --control /tmp/pc.json set key=language value=zh-tw`.
+`zh-Hant` is also accepted. This changes interface text, not PDF contents or file names.
+
+Desktop builds need the craft-fonts input above to render every translated label. The existing
+web build embeds only BIZ UDPGothic Regular and lacks a few Traditional Chinese glyphs; full
+web font coverage remains follow-up work.
+
 ## What's next
 
 PrintCraft is young and moving fast. The aim is a workbench where you can view, organize, annotate, fill, sign and edit PDFs, at parity with Acrobat Pro.
