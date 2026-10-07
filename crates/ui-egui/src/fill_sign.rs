@@ -328,9 +328,13 @@ pub(crate) fn signature_pad(ui: &mut egui::Ui, t: &Tokens, d: &mut SigDraft, pre
     });
     ui.add_space(6.0);
     if !d.drawing {
-        let l = ui.label(egui::RichText::new(format!("Type your {what}.")).color(t.text_muted));
-        ui.add(egui::TextEdit::singleline(&mut d.text).desired_width(460.0).hint_text(if d.initials { "Initials" } else { "Your name" }))
-            .labelled_by(l.id);
+        let l = ui.label(egui::RichText::new(crate::i18n::tr_fmt(ui, "Type your {what}.", &[("what", what)])).color(t.text_muted));
+        ui.add(
+            egui::TextEdit::singleline(&mut d.text)
+                .desired_width(460.0)
+                .hint_text(crate::i18n::tr(ui, if d.initials { "Initials" } else { "Your name" })),
+        )
+        .labelled_by(l.id);
         let (rect, _) = ui.allocate_exact_size(vec2(460.0, 150.0), Sense::hover());
         let painter = ui.painter_at(rect);
         painter.rect_filled(rect, CornerRadius::same(6), Color32::WHITE);
@@ -344,7 +348,7 @@ pub(crate) fn signature_pad(ui: &mut egui::Ui, t: &Tokens, d: &mut SigDraft, pre
         }
         return pad_buttons(ui, d);
     }
-    ui.label(egui::RichText::new(format!("Draw your {what} below.")).color(t.text_muted));
+    ui.label(egui::RichText::new(crate::i18n::tr_fmt(ui, "Draw your {what} below.", &[("what", what)])).color(t.text_muted));
     let strokes = &mut d.strokes;
     let (rect, resp) = ui.allocate_exact_size(vec2(460.0, 150.0), Sense::drag());
     let painter = ui.painter_at(rect);

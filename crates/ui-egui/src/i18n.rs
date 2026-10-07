@@ -79,10 +79,31 @@ impl Language {
     }
 
     /// Translate the history prefix only on command labels, never on document text.
+    /// Translate generated action labels while preserving captured filenames and field names.
+    pub fn action_label(self, text: &str) -> String {
+        for (prefix, template, field) in [
+            ("Insert pages from ", "Insert pages from {name}", "name"),
+            ("Fill in ", "Fill in {name}", "name"),
+            ("Set the image of ", "Set the image of {name}", "name"),
+            ("Edit script of ", "Edit script of {name}", "name"),
+            ("Import ", "Import {name}", "name"),
+        ] {
+            if let Some(value) = text.strip_prefix(prefix) {
+                return tr_template(self, template, &[(field, value)]);
+            }
+        }
+        if let Some(key) = text.strip_prefix("Change ")
+            && ["Title", "Author", "Subject", "Keywords", "Creator", "Producer"].contains(&key)
+        {
+            return tr_template(self, "Change {key}", &[("key", self.tr(key))]);
+        }
+        self.tr(text).to_owned()
+    }
+
     pub fn command_label(self, text: &str) -> String {
         for prefix in ["Undo", "Redo"] {
             if let Some(action) = text.strip_prefix(prefix).and_then(|tail| tail.strip_prefix(' ')) {
-                return format!("{} {}", self.tr(prefix), self.tr(action));
+                return format!("{} {}", self.tr(prefix), self.action_label(action));
             }
         }
         self.tr(text).to_string()
@@ -257,6 +278,14 @@ mod tests {
         for template in errors::TEMPLATES {
             assert_ne!(Language::ZhTw.tr(template), *template, "missing diagnostic: {template}");
         }
+    }
+
+    #[test]
+    fn history_labels_preserve_opaque_document_names() {
+        assert_eq!(Language::ZhTw.action_label("Insert pages from Save {e}.pdf"), "從 Save {e}.pdf 插入頁面");
+        assert_eq!(Language::ZhTw.command_label("Undo Insert pages from Save {e}.pdf"), "復原 從 Save {e}.pdf 插入頁面");
+        assert_eq!(Language::ZhTw.action_label("Untranslated custom action"), "Untranslated custom action");
+        assert_eq!(Language::En.command_label("Undo Fill in Save {e}"), "Undo Fill in Save {e}");
     }
 
     #[test]

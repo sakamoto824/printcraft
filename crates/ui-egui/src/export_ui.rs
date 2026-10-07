@@ -53,11 +53,13 @@ pub(crate) fn body(ui: &mut egui::Ui, app: &mut PrintCraftApp, t: &Tokens, kind:
     if kind == ExportKind::Image {
         ui.horizontal(|ui| {
             ui.label(crate::i18n::tr(ui, "Resolution"));
-            egui::ComboBox::from_id_salt("export-dpi").selected_text(format!("{} pixels/inch", d.dpi)).show_ui(ui, |ui| {
-                for dpi in [72.0, 96.0, 150.0, 300.0, 600.0] {
-                    ui.selectable_value(&mut d.dpi, dpi, format!("{dpi} pixels/inch"));
-                }
-            });
+            egui::ComboBox::from_id_salt("export-dpi")
+                .selected_text(crate::i18n::tr_fmt(ui, "{dpi} pixels/inch", &[("dpi", &d.dpi.to_string())]))
+                .show_ui(ui, |ui| {
+                    for dpi in [72.0, 96.0, 150.0, 300.0, 600.0] {
+                        ui.selectable_value(&mut d.dpi, dpi, crate::i18n::tr_fmt(ui, "{dpi} pixels/inch", &[("dpi", &dpi.to_string())]));
+                    }
+                });
         });
         ui.horizontal(|ui| {
             ui.label(crate::i18n::tr(ui, "Format"));

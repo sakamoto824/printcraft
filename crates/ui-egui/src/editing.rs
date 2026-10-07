@@ -66,7 +66,7 @@ impl PrintCraftApp {
                 true
             }
             Err(e) => {
-                self.notify_fmt("{label} failed: {e}", &[("label", self.language.tr(&label)), ("e", &e.to_string())]);
+                self.notify_fmt("{label} failed: {e}", &[("label", &self.language.action_label(&label)), ("e", &e.to_string())]);
                 false
             }
         }
@@ -89,7 +89,7 @@ impl PrintCraftApp {
                     self.views[i].document_changed(&doc.info);
                 }
                 self.views[i].comments.selected = None;
-                let label = self.language.tr(&label).to_string();
+                let label = self.language.action_label(&label);
                 if undo {
                     self.notify_fmt("Undid {label}", &[("label", &label)]);
                 } else {

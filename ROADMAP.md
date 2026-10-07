@@ -128,6 +128,7 @@ M0 → M1 → M2 → M3 → M4 must happen in order. After M4, M5–M12 can run 
 
 Newest first. One line per session: the date, what moved, and the new overall percentage.
 
+- **2026-10-07 (community, M14 final audit):** Expand Traditional Chinese to 1,830 entries. Finish signature-pad prompts, checkbox styles, picker filters, resolution labels and generated undo/redo action names; preserve filenames and field names inside history labels. Add an opaque-history regression. No fonts or assets added; web coverage remains partial.
 - **2026-10-07 (localization follow-up):** Expanded Traditional Chinese (Taiwan) across dialogs, panels, file pickers and application messages, referencing PR #112; indexed translations, one-pass templates preserving filenames and URLs, application diagnostics at the UI boundary, and regression tests for language switching, dialog coverage, custom action names and template arguments. Existing Japanese translations remain unchanged; web font coverage is still partial. Overall effort unchanged (about 30–35%).
 
 - **2026-10-07 (community, M14 follow-up):** Translates the shortcuts reference, including registered command labels, view-local explanations and Close. Preferences is now available from Menu ▸ Edit and ⌘, (Ctrl+, elsewhere). UI control tests exercise the menu, shortcut and actual language selector across Chinese, English and Japanese; localization and web font coverage remain partial. Overall effort estimate remains ≈ 30–35%.

@@ -751,8 +751,10 @@ impl PrintCraftApp {
 
     pub fn open_dialog(&mut self) {
         #[cfg(not(target_arch = "wasm32"))]
-        if let Some(p) =
-            rfd::FileDialog::new().add_filter("PDF", &["pdf"]).add_filter("Images and text (converted to PDF)", &create_ui::CONVERTIBLE).pick_file()
+        if let Some(p) = rfd::FileDialog::new()
+            .add_filter("PDF", &["pdf"])
+            .add_filter(self.language.tr("Images and text (converted to PDF)"), &create_ui::CONVERTIBLE)
+            .pick_file()
         {
             self.open_path(&p.to_string_lossy());
         }
@@ -760,9 +762,13 @@ impl PrintCraftApp {
         #[cfg(target_arch = "wasm32")]
         {
             let inbox = self.inbox.clone();
+            let language = self.language;
             wasm_bindgen_futures::spawn_local(async move {
-                if let Some(h) =
-                    rfd::AsyncFileDialog::new().add_filter("PDF", &["pdf"]).add_filter("Images and text", &create_ui::CONVERTIBLE).pick_file().await
+                if let Some(h) = rfd::AsyncFileDialog::new()
+                    .add_filter("PDF", &["pdf"])
+                    .add_filter(language.tr("Images and text"), &create_ui::CONVERTIBLE)
+                    .pick_file()
+                    .await
                 {
                     let bytes = h.read().await;
                     if let Ok(mut q) = inbox.lock() {

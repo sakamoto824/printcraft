@@ -169,7 +169,14 @@ fn calendar(ctx: &egui::Context, view: &mut DocView, field: egui::Rect, fmt: &st
                     if ui.small_button("‹").on_hover_text(crate::i18n::tr(ui, "Previous month")).clicked() {
                         (y, m) = if m == 1 { (y - 1, 12) } else { (y, m - 1) };
                     }
-                    ui.label(egui::RichText::new(format!("{} {y}", crate::i18n::tr(ui, MONTHS[(m.clamp(1, 12) - 1) as usize]))).strong());
+                    ui.label(
+                        egui::RichText::new(crate::i18n::tr_fmt(
+                            ui,
+                            "{month} {y}",
+                            &[("month", crate::i18n::tr(ui, MONTHS[(m.clamp(1, 12) - 1) as usize])), ("y", &y.to_string())],
+                        ))
+                        .strong(),
+                    );
                     if ui.small_button("›").on_hover_text(crate::i18n::tr(ui, "Next month")).clicked() {
                         (y, m) = if m == 12 { (y + 1, 1) } else { (y, m + 1) };
                     }

@@ -1002,12 +1002,13 @@ pub(crate) fn body(ui: &mut egui::Ui, d: &mut FieldDraft, t: &crate::theme::Toke
                     }
                     if let Some(style) = d.check_style.as_mut() {
                         ui.horizontal(|ui| {
-                            let l = ui.label(if d.kind == FormFieldKind::CheckBox { "Check Box Style:" } else { "Button Style:" });
+                            let l =
+                                ui.label(crate::i18n::tr(ui, if d.kind == FormFieldKind::CheckBox { "Check Box Style:" } else { "Button Style:" }));
                             egui::ComboBox::from_id_salt("check-style")
-                                .selected_text(style.label())
+                                .selected_text(crate::i18n::tr(ui, style.label()))
                                 .show_ui(ui, |ui| {
                                     for s in printcraft_engine::CheckStyle::ALL {
-                                        ui.selectable_value(style, s, s.label());
+                                        ui.selectable_value(style, s, crate::i18n::tr(ui, s.label()));
                                     }
                                 })
                                 .response
