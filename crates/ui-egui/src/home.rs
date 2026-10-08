@@ -1,19 +1,19 @@
 //! Home tab: recommended tools, open card, recent files (local only, never another app's list).
 
 use egui::{Align2, CornerRadius, Rect, Sense, Stroke, vec2};
-use printcraft_engine::catalog;
+use pdfcraft_engine::catalog;
 
 use crate::theme::{self, Tokens};
-use crate::{LeftPanel, PrintCraftApp, icons, panels::human_size, widgets};
+use crate::{LeftPanel, PdfCraftApp, icons, panels::human_size, widgets};
 
 const RECOMMENDED: [&str; 5] = ["organize", "comment", "form", "edit", "protect"];
 
-pub fn show(app: &mut PrintCraftApp, ui: &mut egui::Ui) {
+pub fn show(app: &mut PdfCraftApp, ui: &mut egui::Ui) {
     let t = Tokens::get(ui.ctx());
     let language = app.language;
     egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
         egui::Frame::NONE.inner_margin(egui::Margin { left: 36, right: 36, top: 28, bottom: 28 }).show(ui, |ui| {
-            ui.label(egui::RichText::new(language.tr("Welcome to PrintCraft")).font(theme::semibold(24.0)));
+            ui.label(egui::RichText::new(language.tr("Welcome to PdfCraft")).font(theme::semibold(24.0)));
             ui.label(
                 egui::RichText::new(language.tr("An open-source PDF workbench — local, private, and scriptable."))
                     .color(t.text_muted)
@@ -110,7 +110,7 @@ pub fn show(app: &mut PrintCraftApp, ui: &mut egui::Ui) {
             ui.add_space(8.0);
             if app.recent.is_empty() {
                 ui.label(
-                    egui::RichText::new(language.tr("Files you open in PrintCraft appear here. Drop a PDF anywhere to open it.")).color(t.text_muted),
+                    egui::RichText::new(language.tr("Files you open in PdfCraft appear here. Drop a PDF anywhere to open it.")).color(t.text_muted),
                 );
             }
             let mut open = None;
@@ -152,7 +152,7 @@ pub fn show(app: &mut PrintCraftApp, ui: &mut egui::Ui) {
             widgets::section_title(ui, language.tr("Privacy"));
             ui.label(
                 egui::RichText::new(
-                    language.tr("PrintCraft works offline. No telemetry, no account, and no cloud processing unless you add a provider."),
+                    language.tr("PdfCraft works offline. No telemetry, no account, and no cloud processing unless you add a provider."),
                 )
                 .color(t.text_muted),
             );

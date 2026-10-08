@@ -6,7 +6,7 @@ use std::sync::Arc;
 use egui::{Align, Layout};
 
 use crate::theme::{self, Tokens};
-use crate::{Dialog, PrintCraftApp, icons, widgets};
+use crate::{Dialog, PdfCraftApp, icons, widgets};
 
 #[derive(Clone, Debug)]
 pub struct CombineFile {
@@ -23,7 +23,7 @@ enum RowAction {
     Remove(usize),
 }
 
-pub(crate) fn body(ui: &mut egui::Ui, app: &mut PrintCraftApp, t: &Tokens) -> (bool, bool) {
+pub(crate) fn body(ui: &mut egui::Ui, app: &mut PdfCraftApp, t: &Tokens) -> (bool, bool) {
     ui.label(egui::RichText::new(crate::i18n::tr(ui, "Combine files")).font(theme::semibold(18.0)));
     ui.add_space(4.0);
     ui.label(
@@ -105,12 +105,12 @@ pub(crate) fn body(ui: &mut egui::Ui, app: &mut PrintCraftApp, t: &Tokens) -> (b
     (go, cancel)
 }
 
-impl PrintCraftApp {
+impl PdfCraftApp {
     /// Add picked files to the Combine files list (and show it).
     pub(crate) fn stage_combine(&mut self, files: Vec<(String, Vec<u8>)>) {
         for (name, bytes) in files {
             let bytes = Arc::new(bytes);
-            match printcraft_render::inspect(bytes.clone(), None) {
+            match pdfcraft_render::inspect(bytes.clone(), None) {
                 Ok(info) => self.combine_draft.push(CombineFile { name, bytes, pages: info.pages.len(), range: String::new() }),
                 Err(e) => self.notify_fmt("Couldn't add {name}: {e}", &[("name", &name), ("e", &e.to_string())]),
             }

@@ -1,4 +1,4 @@
-# PrintCraft roadmap
+# PdfCraft roadmap
 
 The milestones, current progress and time estimates to Acrobat Pro feature parity. Keep this up to date:
 - **Every session:** update the progress column and add a line to the log.
@@ -6,7 +6,7 @@ The milestones, current progress and time estimates to Acrobat Pro feature parit
 
 Detailed task lists and acceptance tests are in `plan/execution-plan.md` (local-only). This file is the public summary.
 
-**What "parity" means here:** the offline feature set of Acrobat Pro, milestones M0–M14. It excludes Adobe's cloud services (Document Cloud storage, Adobe Sign, the Adobe AI Assistant). Those have no clean-room equivalent; PrintCraft's alternatives are local-first, plus opt-in providers (M13).
+**What "parity" means here:** the offline feature set of Acrobat Pro, milestones M0–M14. It excludes Adobe's cloud services (Document Cloud storage, Adobe Sign, the Adobe AI Assistant). Those have no clean-room equivalent; PdfCraft's alternatives are local-first, plus opt-in providers (M13).
 
 ## Estimate summary
 
@@ -45,7 +45,7 @@ Read this before choosing work. The feature table above counts what exists; this
 | Foundations | Weakest | Rendering is still the bootstrap `hayro`; the inspector is `lopdf`; 18 vendored patches carried |
 | Robustness | Early beta | Each 15-minute fuzz run found new out-of-memory crashes or hangs until 2026-10-05 |
 | Acrobat fidelity | Unmeasured | No systematic side-by-side comparison with Acrobat, visual or behavioural |
-| Product readiness | 0.2.1 | No code signing, localization, performance budgets or keyboard-only operation yet |
+| Product readiness | 0.2.1 | No code signing, performance budgets or keyboard-only operation yet; localization has its catalog system (English, partial Japanese) but few strings go through it |
 
 **By area** (shipped share of each area's features):
 
@@ -79,7 +79,7 @@ The gaps that matter most, in priority order. Agents: prefer these over adding P
 3. **Measure fidelity against Acrobat.** Build a side-by-side harness (render, text, form behaviour) over synthetic fixtures (`plan/acrobat/`, clean-room rules apply). Until then, parity numbers count features, not quality.
 4. **Editing existing content (M7).** Fonts, subsets, reflow and CJK. The most visible gap for Pro users.
 5. **Pro workflows.** Signatures with timestamps and LTV (M9), OCR beyond Latin (M10), Office import/export (M10), preflight and PDF/A/X/UA (M11), XFA (M12).
-6. **1.0 polish (M14).** Code-signed installers, localization, keyboard-only operation, a full screen-reader audit.
+6. **1.0 polish (M14).** Code-signed installers, localization (the catalog system is in place; route every dialog and panel string through `tl!`, then add languages), keyboard-only operation, a full screen-reader audit.
 
 Decided against for now (owner, 2026-10-05): self-installing updates and an update check at start. Help ▸ Check for updates is manual only.
 
@@ -103,7 +103,7 @@ Hours are for a single agent (low–high). "Done" is the estimated fraction of t
 | M11 | Optimize, preflight, PDF/A/X/UA, print production | 200–350 | 18% | 165–290 | Done: new `optimize` crate: Reduce File Size and the PDF Optimizer (images measured where drawn, bicubic downsampling, JPEG/ZIP recompression only when smaller, discard objects and user data, Flate clean-up, resource merging, object streams). Missing: fonts and transparency panels, space audit, preflight, PDF/A/X/UA |
 | M12 | Accessibility, compare, measure, search, XFA | 200–380 | 20% | 160–305 | Done: new `a11y` crate with the Accessibility Checker (all 32 rules, report, Fix/Skip/Explain, options dialog and results panel, agent tools). Missing: autotag, Tags/Order/Content panels, Reading Order tool, alt-text workflow, compare, measure, search index, XFA |
 | M13 | Automation (MCP, Action Wizard, CLI) + AI providers | 60–120 | 45% | 33–66 | Done: MCP resources (document info, text, page images); headless tool table (123 tools incl. signing, optimizing, initial view, links, stamps, data exchange, comment review, forms authoring and scripts, redaction, sanitize, print, add content), opt-in MCP server over stdio, CLI `run`/`tools`, UI control channel with drag. Missing: Action Wizard, AI providers |
-| M14 | 1.0 polish: performance, localization, installers | 120–250 | 0% | 120–250 | Partial Japanese localization: 1,830 interface entries, dialogs, panels and history labels; OS/library details remain in their original language. |
+| M14 | 1.0 polish: performance, localization, installers | 120–250 | 2% | 118–245 | Done: PhotoCraft's translation system (`i18n/`: TSV catalogs, `tl!`, command-id and plural entries, system-language detection, catalog tests) with English and the first Japanese strings (menus, Preferences). Missing: dialogs and panels through `tl!`, more languages, Windows language detection, installers, performance budgets |
 | | **Total (original plan sizing)** | **2,085–3,840** | **≈ 35%** | **≈ 1,350–2,500 at the planned rate; ≈ 600–1,100 at the measured rate** | |
 
 **Overall progress: about 30–35% of the effort (49.5% of features shipped).** The viewer and the core are far ahead of the editing features, because the viewer was built first so progress could be seen; rendering itself is still borrowed from `hayro`. See [Honest assessment](#honest-assessment-2026-10-05).
@@ -127,9 +127,12 @@ M0 → M1 → M2 → M3 → M4 must happen in order. After M4, M5–M12 can run 
 
 Newest first. One line per session: the date, what moved, and the new overall percentage.
 
+- **2026-10-07 (localization):** The interface translates through the same system as PhotoCraft: one TSV catalog per language (`crates/ui-egui/src/i18n/ja.tsv`), the `tl!` macro, entries keyed by command id or with plural forms, and catalog tests (format, duplicates, placeholders, command ids). Catalogs are validated strictly (unknown escapes, reserved contexts, placeholders, ellipses, plural forms), a bad line is skipped and logged at run time, `fmt` substitutes in one pass, the drawing language is per thread, and each `.tsv` is an attributed asset (`kind = "translation"`, checked by `cargo xtask assets`); validation, attribution and the language-switch control test folded in from #175. The 49 existing Japanese strings moved over unchanged, plus `Auto`. The `language` preference now defaults to `auto` (follow the system language; English when it has no catalog); `en`/`ja` still persist, and unknown values are rejected. Not covered: dialogs and panels, Windows system-language detection. ≈ 30–35% (unchanged).
+- **2026-10-07 (session 16):** PrintCraft is renamed PdfCraft: repo `storytold/pdfcraft`, crates and binaries `pdfcraft*`, bundle id `ai.storyteller.pdfcraft`. On first launch the app moves the old PrintCraft settings and crash-recovery folders to the new name, so upgrades keep recent files, preferences and unsaved work. No feature change. ≈ 30–35%.
 - **2026-10-07 (community, M14):** Expand Japanese from 49 to 1,830 interface entries across dialogs, panels, shortcuts, native pickers and application diagnostics. Add a visible Preferences menu and shortcut, English/Japanese command search, indexed lookup and one-pass templates that preserve filenames and custom action names. Add UI, template, persistence and glyph regressions; unknown OS/library details remain verbatim. Existing craft-fonts input is unchanged. Localization remains partial.
 - **2026-10-07 (session 15):** Five community issues, each with a regression test: in two-page view, Next page moves a whole spread (#77, #70); Export to Word opens in Word again, with control characters dropped and receipt-length pages kept within Word's 22 in, checked in Microsoft Word (#78, #72); macOS opens PDFs from Finder, Open With and the Dock (Apple events through the audited `fmv-macos-events`, PDF declared in the Info.plist), and the packaging no longer describes the image editor it was copied from (#82, #73); Add text keeps the box being typed when you click elsewhere, with Done and Discard beside it, reproduced and checked with real OS input (#86, #74); sharper, higher-contrast text, most visible on Windows, with every text colour at WCAG AA in both themes (#84, #76; the console window was already gone in 0.2.1). Still open: #79 (layered "not verified" signature appearances), #80 (native macOS menu bar), #81 (Homebrew and Scoop). P0 88%, P1 53%; 805 features 50.2% shipped (53.7% weighted). ≈ 30–35%.
 - **2026-10-06 (session 14):** Issues: move and resize existing text boxes in Edit text (#59, closes #40); Windows release builds open no console window and the Start Menu shortcut has its icon (#58, #57; rolled out to every Craft app); native Windows ARM64 installers, installed and run on an ARM64 runner in CI (#66, #71; the intermittent ARM64 test crash was a WARP shader-JIT race between parallel GPU-rendering tests, not our code); XFA forms are detected and explained instead of failing silently (#65, #60 stays open for real XFA). Also: squiggly underline tool, comment opacity, Preferences ▸ Identity, drag-and-drop/hover tests; community table export to Word/HTML/RTF (#62, with linear-time detection and a column cap). #63 (timestamps/LTV with outbound network) held for review fixes and an owner decision on network access. ≈ 30–35% (unchanged).
+- **2026-10-06 (community, #68):** Interface language: Czech (Čeština, `ui.set language=cs`) joins English and Japanese. It translates every registered File/Edit/Pages/View/Help command and every label routed through the translation table, with tests that fail when a menu label lacks Czech; the interface fonts are tested to cover Czech diacritics. Dialogs and panels remain English (misc.prefs-language: partial).
 - **2026-10-05 (session 13, later):** FreeBSD: CI builds and tests the workspace in a FreeBSD 14.3 VM (#45) and the release ships a FreeBSD x86_64 tarball, checked in CI (#42); README lists FreeBSD. Fuzzing: the nightly job's 11 hangs fixed (#41: our parser's exponential retries, inline images, Type 3 fan-out), plus a JBIG2 hang (#43, vendored hayro-jbig2) and a Type 1 font stack overflow (#46, skrifa 0.47); a full run now finds 0 crashes. Landed community PRs #36 (text editing, Japanese replacements), #47 (English/Japanese interface) and #48 (XFDF colour crash). Windows launch crash with Intel's Vulkan driver fixed by using Direct3D 12 (#49, issue #37); one copy of the Japanese font instead of two (#51, −8.3 MB); full screen and About get real tests (#50). P0 88%, P1 52%. ≈ 30–35%.
 - **2026-10-05 (community, #47):** Interface language: Preferences ▸ Interface language switches English/Japanese and persists (`ui.set language=ja|en`, reported by `ui.state`). Core menu labels are translated; dialogs, panels and more languages remain open (misc.prefs-language: partial).
 - **2026-10-05 (session 13):** Landed community PRs #3–#7 and the never-crash rollout (#11–#25); CI green on every job for the first time in 30+ runs (clippy 1.99, Windows line endings, perf-test noise); nightly fuzz job made to finish (child memory cap) and its findings fixed: 7 out-of-memory crashes (#27, #29, #30) and 11 hangs (in review); issue #8 (integrated GPU, keyboard save prompt); Help ▸ Check for updates (manual only). Added the honest assessment and gap list above. P0 88%, P1 52%; 804 features 49.5% shipped (53.3% weighted). ≈ 30–35%.
@@ -175,7 +178,7 @@ Newest first. One line per session: the date, what moved, and the new overall pe
   - Overall ≈ 9.5%.
 
 - **2026-09-30 (session 5, after a machine crash; no work lost):**
-  - Agent control: new `printcraft-automation` crate with 20 JSON-Schema tools, an opt-in MCP server (`printcraft-cli mcp`, stdio only, can be compiled out), and `printcraft-cli run`/`tools`.
+  - Agent control: new `pdfcraft-automation` crate with 20 JSON-Schema tools, an opt-in MCP server (`pdfcraft-cli mcp`, stdio only, can be compiled out), and `pdfcraft-cli run`/`tools`.
   - Text on rotated pages now reads along its lines; the pdf.js oracle is unchanged at median 0.980.
   - Finding text in 520 pages: 17.9 s → 3.7 s (parallel), about 20 ms when repeated (cached).
   - CI: dependency licence audit (`deny.toml`, `xtask deny`) and a GitHub workflow for macOS, Windows, Linux and wasm.

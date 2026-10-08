@@ -2,11 +2,11 @@
 //! Discard User Data and Clean Up panels. The result is saved as a copy, like Reduce File Size.
 
 use egui::{Align, Layout};
-use printcraft_engine::Hidden;
-use printcraft_engine::optimize::{Compression, ImageSettings, QUALITIES, Settings};
+use pdfcraft_engine::Hidden;
+use pdfcraft_engine::optimize::{Compression, ImageSettings, QUALITIES, Settings};
 
 use crate::theme::{self, Tokens};
-use crate::{PrintCraftApp, widgets};
+use crate::{PdfCraftApp, widgets};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum OptimizeTab {
@@ -160,7 +160,7 @@ pub(crate) fn body(ui: &mut egui::Ui, d: &mut OptimizeDraft, t: &Tokens) -> (boo
 }
 
 /// Audit Space Usage: bytes and share of the file per kind of content.
-pub(crate) fn audit_body(ui: &mut egui::Ui, rows: &[printcraft_engine::optimize::SpaceUse], t: &Tokens) -> bool {
+pub(crate) fn audit_body(ui: &mut egui::Ui, rows: &[pdfcraft_engine::optimize::SpaceUse], t: &Tokens) -> bool {
     ui.label(egui::RichText::new(crate::i18n::tr(ui, "Space Audit")).font(crate::theme::semibold(18.0)));
     ui.add_space(8.0);
     egui::Grid::new("space-audit").num_columns(3).striped(true).spacing([24.0, 4.0]).show(ui, |ui| {
@@ -172,7 +172,7 @@ pub(crate) fn audit_body(ui: &mut egui::Ui, rows: &[printcraft_engine::optimize:
         for r in rows.iter().filter(|r| r.bytes > 0) {
             // "Patterns" also names the redaction search patterns ("模式"); the audit's PDF
             // graphics objects need their own key.
-            let category = if r.category == printcraft_engine::optimize::SpaceCategory::Patterns {
+            let category = if r.category == pdfcraft_engine::optimize::SpaceCategory::Patterns {
                 crate::i18n::tr(ui, "Patterns (graphics objects)").to_string()
             } else {
                 crate::i18n::tr(ui, r.category.label()).to_string()
@@ -195,7 +195,7 @@ pub(crate) fn audit_body(ui: &mut egui::Ui, rows: &[printcraft_engine::optimize:
     ok
 }
 
-impl PrintCraftApp {
+impl PdfCraftApp {
     /// Optimize PDF with the dialog's choices and save the copy.
     pub fn optimize_with_draft(&mut self) {
         let Some((_, id)) = self.active_ids() else { return };

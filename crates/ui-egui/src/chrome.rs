@@ -4,9 +4,9 @@ use egui::{Align, Align2, Color32, CornerRadius, Layout, Rect, Sense, Stroke, ve
 
 use crate::canvas::{Fit, PageLayout};
 use crate::theme::{self, ThemeKind, Tokens};
-use crate::{Dialog, Mode, PrintCraftApp, PropsTab, RightPanel, icons, widgets};
+use crate::{Dialog, Mode, PdfCraftApp, PropsTab, RightPanel, icons, widgets};
 
-pub fn tab_strip(app: &mut PrintCraftApp, ui: &mut egui::Ui) {
+pub fn tab_strip(app: &mut PdfCraftApp, ui: &mut egui::Ui) {
     let language = app.language;
     let t = Tokens::get(ui.ctx());
     let left = if cfg!(target_os = "macos") && app.integrated_titlebar { 80 } else { 8 };
@@ -56,7 +56,7 @@ pub fn tab_strip(app: &mut PrintCraftApp, ui: &mut egui::Ui) {
                         app.dialog = Some(Dialog::Shortcuts);
                     }
                     // One click to the community, from anywhere in the app.
-                    if widgets::ghost_button(ui, "messages-square", "Discord").on_hover_text(printcraft_engine::links::DISCORD).clicked() {
+                    if widgets::ghost_button(ui, "messages-square", "Discord").on_hover_text(pdfcraft_engine::links::DISCORD).clicked() {
                         app.execute("help.discord");
                     }
                 });
@@ -104,7 +104,7 @@ fn tab(ui: &mut egui::Ui, t: &Tokens, name: &str, dirty: bool, active: bool, clo
     resp.on_hover_text(if dirty { crate::i18n::tr_fmt(ui, "{name} — unsaved changes", &[("name", name)]) } else { name.to_string() })
 }
 
-pub fn mode_bar(app: &mut PrintCraftApp, ui: &mut egui::Ui) {
+pub fn mode_bar(app: &mut PdfCraftApp, ui: &mut egui::Ui) {
     let t = Tokens::get(ui.ctx());
     let language = app.language;
     egui::Panel::top("mode_bar")
@@ -154,7 +154,7 @@ pub fn mode_bar(app: &mut PrintCraftApp, ui: &mut egui::Ui) {
         });
 }
 
-fn main_menu(app: &mut PrintCraftApp, ui: &mut egui::Ui) {
+fn main_menu(app: &mut PdfCraftApp, ui: &mut egui::Ui) {
     let language = app.language;
     let t = Tokens::get(ui.ctx());
     let resp = widgets::ghost_button(ui, "panel-left", language.tr("Menu"));
@@ -261,7 +261,7 @@ fn main_menu(app: &mut PrintCraftApp, ui: &mut egui::Ui) {
     });
 }
 
-pub fn right_rail(app: &mut PrintCraftApp, ui: &mut egui::Ui) {
+pub fn right_rail(app: &mut PdfCraftApp, ui: &mut egui::Ui) {
     let language = app.language;
     let t = Tokens::get(ui.ctx());
     let Some((index, id)) = app.active_ids() else { return };
