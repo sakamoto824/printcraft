@@ -142,6 +142,40 @@ fn japanese_controls_and_search_keep_command_ids() {
 }
 
 #[test]
+fn preferences_menu_and_shortcut_allow_switching_interface_languages() {
+    let (mut h, c) = harness();
+    ok(&mut h, &c, "ui.set", json!({ "key": "language", "value": "ja" }));
+    ok(&mut h, &c, "ui.click", json!({ "label": "メニュー" }));
+    ok(&mut h, &c, "ui.click", json!({ "label": "編集 ⏵" }));
+    let menu = ok(&mut h, &c, "ui.inspect", json!({ "query": "環境設定…" }));
+    let prefs = menu["widgets"].as_array().unwrap().iter().find(|w| w["clickable"] == true).expect("Preferences menu item");
+    ok(&mut h, &c, "ui.click", json!({ "id": prefs["id"] }));
+    for (current, next, code) in [("日本語", "English", "en"), ("English", "日本語", "ja")] {
+        let selector = ok(&mut h, &c, "ui.inspect", json!({ "query": current }));
+        let combo = selector["widgets"].as_array().unwrap().iter().find(|w| w["role"] == "ComboBox").expect("language selector");
+        ok(&mut h, &c, "ui.click", json!({ "id": combo["id"] }));
+        ok(&mut h, &c, "ui.click", json!({ "label": next }));
+        assert_eq!(ok(&mut h, &c, "ui.state", json!({}))["language"], code);
+    }
+    ok(&mut h, &c, "ui.click", json!({ "label": "OK" }));
+    ok(&mut h, &c, "ui.key", json!({ "key": ",", "modifiers": ["command"] }));
+    let prefs = ok(&mut h, &c, "ui.inspect", json!({ "query": "表示言語" }));
+    assert!(prefs["count"].as_u64().unwrap() > 0, "{prefs}");
+    ok(&mut h, &c, "ui.click", json!({ "label": "OK" }));
+
+    ok(&mut h, &c, "ui.command", json!({ "id": "help.shortcuts" }));
+    for label in ["キーボードショートカット", "開く", "環境設定", "次／前の検索結果", "ダブルクリック", "閉じる"]
+    {
+        let found = ok(&mut h, &c, "ui.inspect", json!({ "query": label }));
+        assert!(found["count"].as_u64().unwrap() > 0, "{label}: {found}");
+    }
+    let english = ok(&mut h, &c, "ui.inspect", json!({ "query": "Next / previous match" }));
+    assert_eq!(english["count"], 0);
+    ok(&mut h, &c, "ui.click", json!({ "label": "閉じる" }));
+    assert_eq!(ok(&mut h, &c, "ui.state", json!({}))["documents"][0]["name"], "doc.pdf");
+}
+
+#[test]
 fn japanese_dialogs_errors_and_custom_action_names() {
     let (mut h, c) = harness();
     ok(&mut h, &c, "ui.set", json!({"key": "language", "value": "ja"}));

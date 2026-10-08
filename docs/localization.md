@@ -1,6 +1,6 @@
 # Interface language
 
-Choose **Edit > Preferences > Interface language** and select **Auto**, **English**, **日本語**, **Čeština** or **Português (Brasil)**. The change applies immediately and persists between launches. Command ids, document contents and file names are unchanged.
+Choose **Menu > Edit > Preferences…** (Command-comma on macOS, Ctrl-comma elsewhere) **> Interface language** and select **Auto**, **English**, **日本語**, **Čeština** or **Português (Brasil)**. The change applies immediately and persists between launches. Command ids, document contents and file names are unchanged.
 
 **Auto** (the default) follows the system language: `LC_ALL`, `LC_MESSAGES` or `LANG`, then the preferred-languages list on macOS. Any Portuguese locale (`pt_BR`, `pt_PT`) uses the Brazilian catalog. A system language without a catalog, such as French, shows English. Windows has no system-language detection yet, so **Auto** shows English there unless `LANG` is set.
 
