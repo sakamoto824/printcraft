@@ -1,15 +1,15 @@
-//! What each registered command does in this frontend (`printcraft_engine::commands` says
+//! What each registered command does in this frontend (`pdfcraft_engine::commands` says
 //! what it is called, where it appears, which key runs it and when it is enabled).
 //!
 //! Menus, keyboard shortcuts, the palette, the tool panels and automation (`set_option`, and
-//! the control channel later) all call `PrintCraftApp::execute`.
+//! the control channel later) all call `PdfCraftApp::execute`.
 
-use printcraft_engine::Edit;
-use printcraft_engine::commands::{self, COMMANDS, CommandSpec};
+use pdfcraft_engine::Edit;
+use pdfcraft_engine::commands::{self, COMMANDS, CommandSpec};
 
-use crate::{Dialog, Mode, PrintCraftApp, PropsTab, RightPanel, SaveTarget, theme::ThemeKind, widgets};
+use crate::{Dialog, Mode, PdfCraftApp, PropsTab, RightPanel, SaveTarget, theme::ThemeKind, widgets};
 
-impl PrintCraftApp {
+impl PdfCraftApp {
     pub(crate) fn command_enabled(&self, spec: &CommandSpec) -> bool {
         commands::is_enabled(spec, &self.session, self.active_ids().map(|(_, id)| id))
     }
@@ -20,7 +20,7 @@ impl PrintCraftApp {
     /// Last-resort guard (AGENTS.md §4): a command that panics is reported and the app, with its
     /// open documents, keeps running. Edits are applied to a copy, so the document is unchanged.
     pub fn execute(&mut self, id: &str) -> bool {
-        match printcraft_engine::guard(|| self.execute_unguarded(id)) {
+        match pdfcraft_engine::guard(|| self.execute_unguarded(id)) {
             Ok(done) => done,
             Err(m) => {
                 self.notify_fmt("That didn't work: an internal error stopped it ({m}). Your documents are unchanged.", &[("m", m.as_str())]);
@@ -32,35 +32,34 @@ impl PrintCraftApp {
     fn execute_unguarded(&mut self, id: &str) -> bool {
         let Some(spec) = commands::command(id) else { return false };
         if !self.command_enabled(spec) {
-            let lang = self.language;
             let why = match spec.needs {
-                commands::Needs::Undo => lang.tr("Nothing to undo").to_string(),
-                commands::Needs::Redo => lang.tr("Nothing to redo").to_string(),
-                commands::Needs::FillForms if self.active.is_some() => lang.tr("This document has no form fields you can fill in").to_string(),
-                commands::Needs::HasComments if self.active.is_some() => lang.tr("This document has no comments to flatten").to_string(),
-                commands::Needs::HasFields if self.active.is_some() => lang.tr("This document has no form fields to flatten").to_string(),
+                commands::Needs::Undo => tl!("Nothing to undo").to_string(),
+                commands::Needs::Redo => tl!("Nothing to redo").to_string(),
+                commands::Needs::FillForms if self.active.is_some() => tl!("This document has no form fields you can fill in").to_string(),
+                commands::Needs::HasComments if self.active.is_some() => tl!("This document has no comments to flatten").to_string(),
+                commands::Needs::HasFields if self.active.is_some() => tl!("This document has no form fields to flatten").to_string(),
                 commands::Needs::HasRedactions if self.active.is_some() => {
-                    lang.tr("There are no redaction marks (mark text, areas or pages first)").to_string()
+                    tl!("There are no redaction marks (mark text, areas or pages first)").to_string()
                 }
                 commands::Needs::Marks(k) if self.active.is_some() => {
                     let kind = match k {
-                        printcraft_engine::MarkKind::HeaderFooter => lang.tr("header or footer"),
-                        printcraft_engine::MarkKind::Watermark => lang.tr("watermark"),
-                        printcraft_engine::MarkKind::Background => lang.tr("background"),
+                        pdfcraft_engine::MarkKind::HeaderFooter => tl!("header or footer"),
+                        pdfcraft_engine::MarkKind::Watermark => tl!("watermark"),
+                        pdfcraft_engine::MarkKind::Background => tl!("background"),
                     };
-                    crate::i18n::tr_template(lang, "This document has no {kind} to change", &[("kind", kind)])
+                    crate::i18n::fmt(tl!("This document has no {kind} to change"), &[("kind", kind)])
                 }
                 commands::Needs::Security | commands::Needs::ProtectedSecurity if self.active.is_some() => {
                     if self.active_ids().and_then(|(_, id)| self.session.get(id)).is_some_and(|d| d.allows_security_change()) {
-                        lang.tr("This document isn't password-protected").to_string()
+                        tl!("This document isn't password-protected").to_string()
                     } else {
-                        lang.tr("Only the document's owner can change its security (open it with the permissions password)").to_string()
+                        tl!("Only the document's owner can change its security (open it with the permissions password)").to_string()
                     }
                 }
                 commands::Needs::Assembly | commands::Needs::Modification | commands::Needs::Annotate if self.active.is_some() => {
-                    lang.tr("The document's security settings don't allow this change").to_string()
+                    tl!("The document's security settings don't allow this change").to_string()
                 }
-                _ => lang.tr("Open a document first").to_string(),
+                _ => tl!("Open a document first").to_string(),
             };
             self.notify(why);
             return false;
@@ -103,8 +102,8 @@ impl PrintCraftApp {
                 }
                 self.dialog = Some(Dialog::NumberPages);
             }
-            link if printcraft_engine::links::for_command(link).is_some() => {
-                if let Some(l) = printcraft_engine::links::for_command(link) {
+            link if pdfcraft_engine::links::for_command(link).is_some() => {
+                if let Some(l) = pdfcraft_engine::links::for_command(link) {
                     self.open_url(l.url);
                 }
             }
@@ -150,14 +149,8 @@ impl PrintCraftApp {
                         self.views[i].clear_selection();
                         let style = self.comment_prefs.style(tool);
                         let author = self.comment_prefs.author.clone();
-                        let shape = printcraft_engine::Shape::TextMarkup { kind, quads };
-                        self.apply_edit(Edit::AddAnnotation(printcraft_engine::NewAnnotation {
-                            page,
-                            shape,
-                            style,
-                            contents: String::new(),
-                            author,
-                        }));
+                        let shape = pdfcraft_engine::Shape::TextMarkup { kind, quads };
+                        self.apply_edit(Edit::AddAnnotation(pdfcraft_engine::NewAnnotation { page, shape, style, contents: String::new(), author }));
                     }
                 }
             }
@@ -207,7 +200,7 @@ impl PrintCraftApp {
             | "edit.header_footer.update"
             | "edit.watermark.update"
             | "edit.background.update" => {
-                use printcraft_engine::MarkKind as K;
+                use pdfcraft_engine::MarkKind as K;
                 let kind = if id.starts_with("edit.header_footer") {
                     K::HeaderFooter
                 } else if id.starts_with("edit.watermark") {
@@ -226,10 +219,10 @@ impl PrintCraftApp {
                     self.marks_draft.hf.text[5] = "<<Bates Number#6#1##>>".into();
                 }
                 self.marks_draft.focused_box = 5;
-                self.dialog = Some(Dialog::Marks(printcraft_engine::MarkKind::HeaderFooter));
+                self.dialog = Some(Dialog::Marks(pdfcraft_engine::MarkKind::HeaderFooter));
             }
             "edit.header_footer.remove" | "edit.watermark.remove" | "edit.background.remove" => {
-                use printcraft_engine::MarkKind as K;
+                use pdfcraft_engine::MarkKind as K;
                 let kind = match id {
                     "edit.header_footer.remove" => K::HeaderFooter,
                     "edit.watermark.remove" => K::Watermark,
@@ -324,9 +317,9 @@ impl PrintCraftApp {
             }
             "form.tab_order.row" | "form.tab_order.column" | "form.tab_order.structure" => {
                 let order = match id {
-                    "form.tab_order.row" => printcraft_engine::TabOrder::Row,
-                    "form.tab_order.column" => printcraft_engine::TabOrder::Column,
-                    _ => printcraft_engine::TabOrder::Structure,
+                    "form.tab_order.row" => pdfcraft_engine::TabOrder::Row,
+                    "form.tab_order.column" => pdfcraft_engine::TabOrder::Column,
+                    _ => pdfcraft_engine::TabOrder::Structure,
                 };
                 let n = active.and_then(|i| self.session.get(self.views[i].id)).map_or(0, |d| d.info.pages.len());
                 self.apply_edit(Edit::SetTabOrder { pages: (0..n).collect(), order });
@@ -380,9 +373,9 @@ impl PrintCraftApp {
             }
             "form.export_data" => self.export_data_dialog(false, true),
             "form.merge_data" => self.merge_data_dialog(),
-            "export.docx" => self.export_office_dialog(printcraft_engine::compare::OfficeFormat::Docx),
-            "export.html" => self.export_office_dialog(printcraft_engine::compare::OfficeFormat::Html),
-            "export.rtf" => self.export_office_dialog(printcraft_engine::compare::OfficeFormat::Rtf),
+            "export.docx" => self.export_office_dialog(pdfcraft_engine::compare::OfficeFormat::Docx),
+            "export.html" => self.export_office_dialog(pdfcraft_engine::compare::OfficeFormat::Html),
+            "export.rtf" => self.export_office_dialog(pdfcraft_engine::compare::OfficeFormat::Rtf),
             "form.prepare" => {
                 self.left = crate::LeftPanel::Tool("form");
                 self.left_open = true;
@@ -422,10 +415,7 @@ impl PrintCraftApp {
                 if let Some(i) = active {
                     self.views[i].forms.focus = None;
                 }
-                self.notify_fmt(
-                    "Click on the page to add a {tool}, or drag to set its size",
-                    &[("tool", &self.language.tr(tool.label()).to_lowercase())],
-                );
+                self.notify_fmt("Click on the page to add a {tool}, or drag to set its size", &[("tool", &tl!(tool.label()).to_lowercase())]);
             }
             fill if crate::fill_sign::FillTool::from_command(fill).is_some() => {
                 let Some(tool) = crate::fill_sign::FillTool::from_command(fill) else { return false };
@@ -500,11 +490,11 @@ impl PrintCraftApp {
 }
 
 /// Render a top-level menu's registered commands (with live labels, shortcuts and enablement).
-pub(crate) fn registry_menu(app: &mut PrintCraftApp, ui: &mut egui::Ui, menu: &str) {
+pub(crate) fn registry_menu(app: &mut PdfCraftApp, ui: &mut egui::Ui, menu: &str) {
     let mac = cfg!(target_os = "macos") || cfg!(target_arch = "wasm32");
     for spec in commands::menu(menu) {
         let label = commands::current_label(spec, &app.session, app.active_ids().map(|(_, id)| id));
-        let label = app.language.command_label(&label);
+        let label = crate::i18n::menu_label(spec.id, &label);
         let shortcut = spec.shortcut.map(|s| s.label(mac)).unwrap_or_default();
         let enabled = app.command_enabled(spec);
         let resp = ui.add_enabled(enabled, egui::Button::new(label).shortcut_text(shortcut));

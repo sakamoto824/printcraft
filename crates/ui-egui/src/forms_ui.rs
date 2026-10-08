@@ -5,8 +5,8 @@
 //! and list boxes open a list of their options. Every change is one undoable engine edit.
 
 use egui::{Color32, CornerRadius, Rect, Stroke, vec2};
-use printcraft_engine::{Edit, FieldValue, FormField, FormFieldKind, field_flags};
-use printcraft_render::DocInfo;
+use pdfcraft_engine::{Edit, FieldValue, FormField, FormFieldKind, field_flags};
+use pdfcraft_render::DocInfo;
 
 use crate::canvas::{DocView, PageXform};
 use crate::theme::Tokens;
@@ -37,7 +37,7 @@ pub struct FormView {
     /// A message for the app to show (e.g. "buttons run JavaScript").
     pub notice: Option<FormNotice>,
     /// A push button was clicked: (its field name, what it does).
-    pub button: Option<(String, printcraft_engine::form_scripts::ButtonAction)>,
+    pub button: Option<(String, pdfcraft_engine::form_scripts::ButtonAction)>,
 }
 
 /// A form message for the app to show, with document data kept separate so the visible
@@ -152,7 +152,7 @@ const MONTHS: [&str; 12] = ["January", "February", "March", "April", "May", "Jun
 /// The date picker under a focused date field. Returns the picked date, formatted with the
 /// field's own format.
 fn calendar(ctx: &egui::Context, view: &mut DocView, field: egui::Rect, fmt: &str, today: (i64, u32, u32)) -> Option<String> {
-    use printcraft_engine::form_scripts::{DateTime, format_date, parse_date};
+    use pdfcraft_engine::form_scripts::{DateTime, format_date, parse_date};
     let fx = view.forms.focus.as_mut()?;
     let (mut y, mut m) = fx.calendar.unwrap_or_else(|| match parse_date(&fx.text, fmt) {
         Some(d) => (d.y, d.m),
@@ -166,18 +166,17 @@ fn calendar(ctx: &egui::Context, view: &mut DocView, field: egui::Rect, fmt: &st
         .show(ctx, |ui| {
             egui::Frame::popup(ui.style()).show(ui, |ui| {
                 ui.horizontal(|ui| {
-                    if ui.small_button("‹").on_hover_text(crate::i18n::tr(ui, "Previous month")).clicked() {
+                    if ui.small_button("‹").on_hover_text(tl!("Previous month")).clicked() {
                         (y, m) = if m == 1 { (y - 1, 12) } else { (y, m - 1) };
                     }
                     ui.label(
-                        egui::RichText::new(crate::i18n::tr_fmt(
-                            ui,
-                            "{month} {y}",
-                            &[("month", crate::i18n::tr(ui, MONTHS[(m.clamp(1, 12) - 1) as usize])), ("y", &y.to_string())],
+                        egui::RichText::new(crate::i18n::fmt(
+                            tl!("{month} {y}"),
+                            &[("month", tl!(MONTHS[(m.clamp(1, 12) - 1) as usize])), ("y", &y.to_string())],
                         ))
                         .strong(),
                     );
-                    if ui.small_button("›").on_hover_text(crate::i18n::tr(ui, "Next month")).clicked() {
+                    if ui.small_button("›").on_hover_text(tl!("Next month")).clicked() {
                         (y, m) = if m == 12 { (y + 1, 1) } else { (y, m + 1) };
                     }
                 });
@@ -207,10 +206,9 @@ fn calendar(ctx: &egui::Context, view: &mut DocView, field: egui::Rect, fmt: &st
                             }
                             if ui
                                 .selectable_label(selected, text)
-                                .on_hover_text(crate::i18n::tr_fmt(
-                                    ui,
-                                    "{month} {day}, {y}",
-                                    &[("month", crate::i18n::tr(ui, MONTHS[(m - 1) as usize])), ("day", &day.to_string()), ("y", &y.to_string())],
+                                .on_hover_text(crate::i18n::fmt(
+                                    tl!("{month} {day}, {y}"),
+                                    &[("month", tl!(MONTHS[(m - 1) as usize])), ("day", &day.to_string()), ("y", &y.to_string())],
                                 ))
                                 .clicked()
                             {
@@ -317,7 +315,7 @@ pub(crate) fn overlay(ctx: &egui::Context, view: &mut DocView, info: &DocInfo, f
                 }
             });
             // Date fields: a calendar under the field (Acrobat's date picker).
-            if let printcraft_engine::form_scripts::Format::Date(fmt) = &f.actions.format
+            if let pdfcraft_engine::form_scripts::Format::Date(fmt) = &f.actions.format
                 && let Some(picked) = calendar(ctx, view, rect, fmt, today)
             {
                 if let Some(fx) = view.forms.focus.as_mut() {
@@ -355,7 +353,7 @@ pub(crate) fn overlay(ctx: &egui::Context, view: &mut DocView, info: &DocInfo, f
                                 }
                             }
                         });
-                        if multi && ui.button(crate::i18n::tr(ui, "Done")).clicked() {
+                        if multi && ui.button(tl!("Done")).clicked() {
                             commit(view, form);
                         }
                     });

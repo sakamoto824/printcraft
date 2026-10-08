@@ -1,9 +1,9 @@
 //! Editing glue: apply engine edits from the UI, undo/redo, save/save-as, and the
 //! "save changes?" prompt when closing a tab or quitting with unsaved edits.
 
-use printcraft_engine::Edit;
+use pdfcraft_engine::Edit;
 
-use crate::PrintCraftApp;
+use crate::PdfCraftApp;
 
 /// What the user was doing when we asked whether to save.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -25,7 +25,7 @@ pub enum SaveTarget {
     As,
 }
 
-impl PrintCraftApp {
+impl PdfCraftApp {
     /// Apply an edit to the active document. Returns `true` on success; failures are shown.
     pub fn apply_edit(&mut self, edit: Edit) -> bool {
         let Some((i, id)) = self.active_ids() else { return false };
@@ -66,7 +66,7 @@ impl PrintCraftApp {
                 true
             }
             Err(e) => {
-                self.notify_fmt("{label} failed: {e}", &[("label", &self.language.action_label(&label)), ("e", &e.to_string())]);
+                self.notify_fmt("{label} failed: {e}", &[("label", &crate::i18n::action_label(&label)), ("e", &e.to_string())]);
                 false
             }
         }
@@ -89,7 +89,7 @@ impl PrintCraftApp {
                     self.views[i].document_changed(&doc.info);
                 }
                 self.views[i].comments.selected = None;
-                let label = self.language.action_label(&label);
+                let label = crate::i18n::action_label(&label);
                 if undo {
                     self.notify_fmt("Undid {label}", &[("label", &label)]);
                 } else {
@@ -131,11 +131,7 @@ impl PrintCraftApp {
         if cut {
             self.apply_edit(Edit::DeletePages { pages: pages.clone() });
         }
-        let what = if pages.len() == 1 {
-            self.language.tr("1 page").to_string()
-        } else {
-            crate::i18n::tr_template(self.language, "{n} pages", &[("n", &pages.len().to_string())])
-        };
+        let what = if pages.len() == 1 { tl!("1 page").to_string() } else { crate::i18n::fmt(tl!("{n} pages"), &[("n", &pages.len().to_string())]) };
         if cut {
             self.notify_fmt("Cut {what}", &[("what", &what)]);
         } else {
@@ -354,7 +350,7 @@ pub fn write_atomically(path: &str, bytes: &[u8]) -> std::io::Result<()> {
     use std::io::Write;
     let target = std::path::Path::new(path);
     let dir = target.parent().filter(|d| !d.as_os_str().is_empty()).unwrap_or(std::path::Path::new("."));
-    let tmp = dir.join(format!(".{}.printcraft-{}.tmp", target.file_name().and_then(|n| n.to_str()).unwrap_or("save"), std::process::id()));
+    let tmp = dir.join(format!(".{}.pdfcraft-{}.tmp", target.file_name().and_then(|n| n.to_str()).unwrap_or("save"), std::process::id()));
     let result = (|| {
         let mut f = std::fs::File::create(&tmp)?;
         f.write_all(bytes)?;
@@ -392,7 +388,7 @@ pub(crate) fn download(name: &str, bytes: &[u8]) -> Result<(), String> {
     Ok(())
 }
 
-impl PrintCraftApp {
+impl PdfCraftApp {
     /// Carry out a Bookmarks-panel action as an undoable edit.
     pub fn bookmark_action(&mut self, action: crate::panels::BmAction) {
         use crate::panels::BmAction as A;
@@ -440,7 +436,7 @@ impl PrintCraftApp {
     }
 }
 
-fn bookmark_at<'a>(items: &'a [printcraft_render::OutlineItem], path: &[usize]) -> Option<&'a printcraft_render::OutlineItem> {
+fn bookmark_at<'a>(items: &'a [pdfcraft_render::OutlineItem], path: &[usize]) -> Option<&'a pdfcraft_render::OutlineItem> {
     let (first, rest) = path.split_first()?;
     let item = items.get(*first)?;
     if rest.is_empty() { Some(item) } else { bookmark_at(&item.children, rest) }

@@ -4,8 +4,9 @@
 use std::sync::{Arc, Mutex};
 
 use egui_kittest::Harness;
-use printcraft_ui_egui::PrintCraftApp;
-use printcraft_ui_egui::control::{ControlClient, Reply};
+use egui_kittest::kittest::Queryable;
+use pdfcraft_ui_egui::PdfCraftApp;
+use pdfcraft_ui_egui::control::{ControlClient, Reply};
 use serde_json::{Value, json};
 
 fn fixture(n: usize) -> Vec<u8> {
@@ -33,11 +34,11 @@ fn fixture(n: usize) -> Vec<u8> {
     out
 }
 
-fn harness() -> (Harness<'static, PrintCraftApp>, ControlClient) {
+fn harness() -> (Harness<'static, PdfCraftApp>, ControlClient) {
     let slot: Arc<Mutex<Option<ControlClient>>> = Arc::default();
     let s = slot.clone();
     let mut h = Harness::builder().with_size(egui::vec2(1400.0, 900.0)).build_eframe(move |cc| {
-        let mut app = PrintCraftApp::new();
+        let mut app = PdfCraftApp::new();
         *s.lock().unwrap() = Some(app.attach_control(&cc.egui_ctx));
         app.open_bytes("doc.pdf", None, fixture(5)).unwrap();
         app
@@ -48,7 +49,7 @@ fn harness() -> (Harness<'static, PrintCraftApp>, ControlClient) {
 }
 
 /// Send a request and run frames until it is answered.
-fn call(h: &mut Harness<'static, PrintCraftApp>, c: &ControlClient, method: &str, params: Value) -> Reply {
+fn call(h: &mut Harness<'static, PdfCraftApp>, c: &ControlClient, method: &str, params: Value) -> Reply {
     let rx = c.send(method, params);
     for _ in 0..30 {
         h.step();
@@ -59,8 +60,42 @@ fn call(h: &mut Harness<'static, PrintCraftApp>, c: &ControlClient, method: &str
     panic!("{method}: no reply after 30 frames");
 }
 
-fn ok(h: &mut Harness<'static, PrintCraftApp>, c: &ControlClient, method: &str, params: Value) -> Value {
+fn ok(h: &mut Harness<'static, PdfCraftApp>, c: &ControlClient, method: &str, params: Value) -> Value {
     call(h, c, method, params).unwrap_or_else(|e| panic!("{method}: {e}"))
+}
+
+/// Switching the interface language changes labels only: documents, their dirty state and the
+/// command ids agents drive stay exactly the same.
+#[test]
+fn language_switch_preserves_document_and_command_ids() {
+    use pdfcraft_ui_egui::i18n;
+    let (mut h, c) = harness();
+    let doc = h.state().views[0].id;
+    h.state_mut().session.apply(doc, pdfcraft_engine::Edit::RotatePages { pages: vec![0], degrees: 90 }).unwrap();
+    let documents = ok(&mut h, &c, "ui.state", json!({}))["documents"].clone();
+    assert_eq!(documents[0]["dirty"], true);
+    let commands = ok(&mut h, &c, "ui.commands", json!({}));
+    for code in ["ja", "en"] {
+        ok(&mut h, &c, "ui.set", json!({ "key": "language", "value": code }));
+        h.run_steps(2);
+        let state = ok(&mut h, &c, "ui.state", json!({}));
+        assert_eq!(state["language"], code);
+        assert_eq!(state["documents"], documents);
+        assert_eq!(ok(&mut h, &c, "ui.commands", json!({})), commands);
+
+        let lang = i18n::Lang::from_code(code).unwrap();
+        h.get_by_label(i18n::tr(lang, "Menu")).click();
+        h.run_steps(2);
+        h.get_by_label(&format!("{} ⏵", i18n::tr(lang, "File"))).hover();
+        h.run_steps(3);
+        h.get_by_label_contains(i18n::tr(lang, "Open…"));
+        ok(&mut h, &c, "ui.key", json!({ "key": "Escape" }));
+        ok(&mut h, &c, "ui.key", json!({ "key": "Escape" }));
+        h.run_steps(2);
+    }
+    let error = call(&mut h, &c, "ui.set", json!({ "key": "language", "value": "xx" })).unwrap_err();
+    assert!(error.contains("auto, en, ja"), "{error}");
+    assert_eq!(ok(&mut h, &c, "ui.state", json!({}))["language"], "en");
 }
 
 #[test]
@@ -80,19 +115,19 @@ fn state_and_view_options() {
 }
 
 #[test]
-fn traditional_chinese_controls_and_search_keep_command_ids() {
+fn japanese_controls_and_search_keep_command_ids() {
     let (mut h, c) = harness();
-    ok(&mut h, &c, "ui.set", json!({ "key": "language", "value": "zh-TW" }));
-    assert_eq!(ok(&mut h, &c, "ui.state", json!({}))["language"], "zh-tw");
-    ok(&mut h, &c, "ui.click", json!({ "label": "閱讀" }));
+    ok(&mut h, &c, "ui.set", json!({ "key": "language", "value": "ja" }));
+    assert_eq!(ok(&mut h, &c, "ui.state", json!({}))["language"], "ja");
+    ok(&mut h, &c, "ui.click", json!({ "label": "閲覧" }));
     assert_eq!(ok(&mut h, &c, "ui.state", json!({}))["mode"], "Read");
 
     ok(&mut h, &c, "ui.command", json!({ "id": "app.preferences" }));
-    let prefs = ok(&mut h, &c, "ui.inspect", json!({ "query": "介面語言" }));
+    let prefs = ok(&mut h, &c, "ui.inspect", json!({ "query": "表示言語" }));
     assert!(prefs["count"].as_u64().unwrap() > 0, "{prefs}");
-    ok(&mut h, &c, "ui.click", json!({ "label": "確定" }));
+    ok(&mut h, &c, "ui.click", json!({ "label": "OK" }));
 
-    for (query, translated) in [("整理", "整理頁面"), ("Split document", "分割文件…"), ("page.split", "分割文件…")] {
+    for (query, translated) in [("整理", "ページを整理"), ("Split document", "文書を分割…"), ("page.split", "文書を分割…")] {
         ok(&mut h, &c, "ui.command", json!({ "id": "view.palette" }));
         ok(&mut h, &c, "ui.type", json!({ "text": query }));
         let hits = ok(&mut h, &c, "ui.inspect", json!({ "query": translated }));
@@ -109,63 +144,64 @@ fn traditional_chinese_controls_and_search_keep_command_ids() {
 #[test]
 fn preferences_menu_and_shortcut_allow_switching_interface_languages() {
     let (mut h, c) = harness();
-    ok(&mut h, &c, "ui.set", json!({ "key": "language", "value": "zh-TW" }));
-    ok(&mut h, &c, "ui.click", json!({ "label": "選單" }));
-    ok(&mut h, &c, "ui.click", json!({ "label": "編輯 ⏵" }));
-    let menu = ok(&mut h, &c, "ui.inspect", json!({ "query": "偏好設定…" }));
+    ok(&mut h, &c, "ui.set", json!({ "key": "language", "value": "ja" }));
+    ok(&mut h, &c, "ui.click", json!({ "label": "メニュー" }));
+    ok(&mut h, &c, "ui.click", json!({ "label": "編集 ⏵" }));
+    let menu = ok(&mut h, &c, "ui.inspect", json!({ "query": "環境設定…" }));
     let prefs = menu["widgets"].as_array().unwrap().iter().find(|w| w["clickable"] == true).expect("Preferences menu item");
     ok(&mut h, &c, "ui.click", json!({ "id": prefs["id"] }));
-    for (current, next, code) in [("繁體中文（台灣）", "English", "en"), ("English", "日本語", "ja"), ("日本語", "繁體中文（台灣）", "zh-tw")]
-    {
+    for (current, next, code) in [("日本語", "English", "en"), ("English", "日本語", "ja")] {
         let selector = ok(&mut h, &c, "ui.inspect", json!({ "query": current }));
         let combo = selector["widgets"].as_array().unwrap().iter().find(|w| w["role"] == "ComboBox").expect("language selector");
         ok(&mut h, &c, "ui.click", json!({ "id": combo["id"] }));
         ok(&mut h, &c, "ui.click", json!({ "label": next }));
         assert_eq!(ok(&mut h, &c, "ui.state", json!({}))["language"], code);
     }
-    ok(&mut h, &c, "ui.click", json!({ "label": "確定" }));
+    ok(&mut h, &c, "ui.click", json!({ "label": "OK" }));
     ok(&mut h, &c, "ui.key", json!({ "key": ",", "modifiers": ["command"] }));
-    let prefs = ok(&mut h, &c, "ui.inspect", json!({ "query": "介面語言" }));
+    let prefs = ok(&mut h, &c, "ui.inspect", json!({ "query": "表示言語" }));
     assert!(prefs["count"].as_u64().unwrap() > 0, "{prefs}");
-    ok(&mut h, &c, "ui.click", json!({ "label": "確定" }));
+    ok(&mut h, &c, "ui.click", json!({ "label": "OK" }));
 
     ok(&mut h, &c, "ui.command", json!({ "id": "help.shortcuts" }));
-    for label in ["鍵盤快速鍵", "開啟", "偏好設定", "下一個／上一個符合項目", "滑鼠按兩下", "關閉"] {
+    for label in ["キーボードショートカット", "開く", "環境設定", "次／前の検索結果", "ダブルクリック", "閉じる"]
+    {
         let found = ok(&mut h, &c, "ui.inspect", json!({ "query": label }));
         assert!(found["count"].as_u64().unwrap() > 0, "{label}: {found}");
     }
     let english = ok(&mut h, &c, "ui.inspect", json!({ "query": "Next / previous match" }));
     assert_eq!(english["count"], 0);
-    ok(&mut h, &c, "ui.click", json!({ "label": "關閉" }));
+    ok(&mut h, &c, "ui.click", json!({ "label": "閉じる" }));
     assert_eq!(ok(&mut h, &c, "ui.state", json!({}))["documents"][0]["name"], "doc.pdf");
 }
 
 #[test]
-fn traditional_chinese_dialogs_diagnostics_and_custom_action_names() {
+fn japanese_dialogs_errors_and_custom_action_names() {
     let (mut h, c) = harness();
-    ok(&mut h, &c, "ui.set", json!({"key": "language", "value": "zh-tw"}));
+    ok(&mut h, &c, "ui.set", json!({"key": "language", "value": "ja"}));
     for (dialog, label) in [
-        ("properties", "文件內容"),
-        ("protect", "使用密碼保護"),
-        ("export-image", "匯出為圖片"),
-        ("optimize", "PDF 最佳化器"),
-        ("recognize-text", "辨識文字"),
-        ("accessibility-options", "無障礙檢驗器選項"),
-        ("js-console", "JavaScript 主控台"),
-        ("compare-files", "比較檔案"),
-        ("sign", "設定簽署用的數位 ID"),
+        ("properties", "文書のプロパティ"),
+        ("protect", "パスワードで保護"),
+        ("export-image", "画像に書き出し"),
+        ("optimize", "PDF の最適化"),
+        ("recognize-text", "テキストを認識"),
+        ("accessibility-options", "アクセシビリティチェックのオプション"),
+        ("js-console", "JavaScript コンソール"),
+        ("compare-files", "ファイルを比較"),
+        ("sign", "署名用のデジタル ID を設定"),
     ] {
         ok(&mut h, &c, "ui.set", json!({"key": "dialog", "value": dialog}));
         let found = ok(&mut h, &c, "ui.inspect", json!({"query": label}));
         assert!(found["count"].as_u64().unwrap() > 0, "{dialog}: {found}");
     }
     ok(&mut h, &c, "ui.set", json!({"key": "dialog", "value": "none"}));
-    assert!(!h.state_mut().apply_edit(printcraft_engine::Edit::DeletePages { pages: vec![0, 1, 2, 3, 4] }));
+    assert!(!h.state_mut().apply_edit(pdfcraft_engine::Edit::DeletePages { pages: vec![0, 1, 2, 3, 4] }));
     let state = ok(&mut h, &c, "ui.state", json!({}));
-    assert_eq!(state["notice"], "刪除頁面失敗：文件至少必須保留一頁");
+    // The frame is translated; the engine's own error text is shown as it is.
+    assert_eq!(state["notice"], "操作「ページを削除」に失敗しました: a document must keep at least one page");
     assert_eq!(ok(&mut h, &c, "ui.state", json!({}))["documents"][0]["name"], "doc.pdf");
 
-    h.state_mut().custom_actions.push(printcraft_engine::actions::Action {
+    h.state_mut().custom_actions.push(pdfcraft_engine::actions::Action {
         name: "Save".to_string(),
         description: "Print".to_string(),
         steps: Vec::new(),
@@ -173,7 +209,7 @@ fn traditional_chinese_dialogs_diagnostics_and_custom_action_names() {
     });
     h.state_mut().wizard.selected = Some("Save".to_string());
     ok(&mut h, &c, "ui.set", json!({"key": "dialog", "value": "action-wizard"}));
-    for label in ["動作精靈", "Save", "Print"] {
+    for label in ["アクションウィザード", "Save", "Print"] {
         let found = ok(&mut h, &c, "ui.inspect", json!({"query": label}));
         assert!(found["widgets"].as_array().unwrap().iter().any(|w| w["label"] == label || w["value"] == label), "{found}");
     }
@@ -271,7 +307,7 @@ fn screenshots_of_window_and_region() {
 fn loopback_transport_requires_the_token() {
     use std::io::{BufRead, BufReader, Write};
     let (mut h, c) = harness();
-    let ep = printcraft_ui_egui::control::serve(c).unwrap();
+    let ep = pdfcraft_ui_egui::control::serve(c).unwrap();
     let talk = |lines: Vec<Value>| {
         let port = ep.port;
         std::thread::spawn(move || {
@@ -292,7 +328,7 @@ fn loopback_transport_requires_the_token() {
             out
         })
     };
-    let pump = |h: &mut Harness<'static, PrintCraftApp>, t: std::thread::JoinHandle<Vec<Value>>| {
+    let pump = |h: &mut Harness<'static, PdfCraftApp>, t: std::thread::JoinHandle<Vec<Value>>| {
         while !t.is_finished() {
             h.step();
         }
