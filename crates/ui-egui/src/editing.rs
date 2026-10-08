@@ -66,7 +66,7 @@ impl PdfCraftApp {
                 true
             }
             Err(e) => {
-                self.notify_fmt("{label} failed: {e}", &[("label", &self.language.action_label(&label)), ("e", &e.to_string())]);
+                self.notify_fmt("{label} failed: {e}", &[("label", &crate::i18n::action_label(&label)), ("e", &e.to_string())]);
                 false
             }
         }
@@ -89,7 +89,7 @@ impl PdfCraftApp {
                     self.views[i].document_changed(&doc.info);
                 }
                 self.views[i].comments.selected = None;
-                let label = self.language.action_label(&label);
+                let label = crate::i18n::action_label(&label);
                 if undo {
                     self.notify_fmt("Undid {label}", &[("label", &label)]);
                 } else {
@@ -131,11 +131,7 @@ impl PdfCraftApp {
         if cut {
             self.apply_edit(Edit::DeletePages { pages: pages.clone() });
         }
-        let what = if pages.len() == 1 {
-            self.language.tr("1 page").to_string()
-        } else {
-            crate::i18n::tr_template(self.language, "{n} pages", &[("n", &pages.len().to_string())])
-        };
+        let what = if pages.len() == 1 { tl!("1 page").to_string() } else { crate::i18n::fmt(tl!("{n} pages"), &[("n", &pages.len().to_string())]) };
         if cut {
             self.notify_fmt("Cut {what}", &[("what", &what)]);
         } else {

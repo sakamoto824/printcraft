@@ -142,7 +142,7 @@ fn japanese_controls_and_search_keep_command_ids() {
 }
 
 #[test]
-fn japanese_dialogs_diagnostics_and_custom_action_names() {
+fn japanese_dialogs_errors_and_custom_action_names() {
     let (mut h, c) = harness();
     ok(&mut h, &c, "ui.set", json!({"key": "language", "value": "ja"}));
     for (dialog, label) in [
@@ -163,7 +163,8 @@ fn japanese_dialogs_diagnostics_and_custom_action_names() {
     ok(&mut h, &c, "ui.set", json!({"key": "dialog", "value": "none"}));
     assert!(!h.state_mut().apply_edit(pdfcraft_engine::Edit::DeletePages { pages: vec![0, 1, 2, 3, 4] }));
     let state = ok(&mut h, &c, "ui.state", json!({}));
-    assert_eq!(state["notice"], "操作「ページを削除」に失敗しました: 文書には少なくとも 1 ページを残す必要があります");
+    // The frame is translated; the engine's own error text is shown as it is.
+    assert_eq!(state["notice"], "操作「ページを削除」に失敗しました: a document must keep at least one page");
     assert_eq!(ok(&mut h, &c, "ui.state", json!({}))["documents"][0]["name"], "doc.pdf");
 
     h.state_mut().custom_actions.push(pdfcraft_engine::actions::Action {

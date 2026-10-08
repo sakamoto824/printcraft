@@ -166,18 +166,17 @@ fn calendar(ctx: &egui::Context, view: &mut DocView, field: egui::Rect, fmt: &st
         .show(ctx, |ui| {
             egui::Frame::popup(ui.style()).show(ui, |ui| {
                 ui.horizontal(|ui| {
-                    if ui.small_button("‹").on_hover_text(crate::i18n::tr(ui, "Previous month")).clicked() {
+                    if ui.small_button("‹").on_hover_text(tl!("Previous month")).clicked() {
                         (y, m) = if m == 1 { (y - 1, 12) } else { (y, m - 1) };
                     }
                     ui.label(
-                        egui::RichText::new(crate::i18n::tr_fmt(
-                            ui,
-                            "{month} {y}",
-                            &[("month", crate::i18n::tr(ui, MONTHS[(m.clamp(1, 12) - 1) as usize])), ("y", &y.to_string())],
+                        egui::RichText::new(crate::i18n::fmt(
+                            tl!("{month} {y}"),
+                            &[("month", tl!(MONTHS[(m.clamp(1, 12) - 1) as usize])), ("y", &y.to_string())],
                         ))
                         .strong(),
                     );
-                    if ui.small_button("›").on_hover_text(crate::i18n::tr(ui, "Next month")).clicked() {
+                    if ui.small_button("›").on_hover_text(tl!("Next month")).clicked() {
                         (y, m) = if m == 12 { (y + 1, 1) } else { (y, m + 1) };
                     }
                 });
@@ -207,10 +206,9 @@ fn calendar(ctx: &egui::Context, view: &mut DocView, field: egui::Rect, fmt: &st
                             }
                             if ui
                                 .selectable_label(selected, text)
-                                .on_hover_text(crate::i18n::tr_fmt(
-                                    ui,
-                                    "{month} {day}, {y}",
-                                    &[("month", crate::i18n::tr(ui, MONTHS[(m - 1) as usize])), ("day", &day.to_string()), ("y", &y.to_string())],
+                                .on_hover_text(crate::i18n::fmt(
+                                    tl!("{month} {day}, {y}"),
+                                    &[("month", tl!(MONTHS[(m - 1) as usize])), ("day", &day.to_string()), ("y", &y.to_string())],
                                 ))
                                 .clicked()
                             {
@@ -355,7 +353,7 @@ pub(crate) fn overlay(ctx: &egui::Context, view: &mut DocView, info: &DocInfo, f
                                 }
                             }
                         });
-                        if multi && ui.button(crate::i18n::tr(ui, "Done")).clicked() {
+                        if multi && ui.button(tl!("Done")).clicked() {
                             commit(view, form);
                         }
                     });

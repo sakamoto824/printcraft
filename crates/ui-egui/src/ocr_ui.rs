@@ -64,10 +64,10 @@ pub(crate) fn body(ui: &mut egui::Ui, app: &mut PdfCraftApp, t: &Tokens) -> (boo
     let d = &mut app.ocr_draft;
     d.to = d.to.clamp(1, pages);
     d.from = d.from.clamp(1, d.to);
-    ui.label(egui::RichText::new(crate::i18n::tr(ui, "Recognize Text")).font(theme::semibold(18.0)));
+    ui.label(egui::RichText::new(tl!("Recognize Text")).font(theme::semibold(18.0)));
     ui.add_space(8.0);
     let group = |ui: &mut egui::Ui, title: &str, body: &mut dyn FnMut(&mut egui::Ui)| {
-        ui.label(egui::RichText::new(crate::i18n::tr(ui, title)).font(theme::semibold(13.0)));
+        ui.label(egui::RichText::new(tl!(title)).font(theme::semibold(13.0)));
         egui::Frame::new().fill(t.hover).corner_radius(egui::CornerRadius::same(6)).inner_margin(egui::Margin::same(10)).show(ui, |ui| {
             ui.set_width(ui.available_width());
             body(ui);
@@ -75,19 +75,19 @@ pub(crate) fn body(ui: &mut egui::Ui, app: &mut PdfCraftApp, t: &Tokens) -> (boo
         ui.add_space(8.0);
     };
     group(ui, "Pages", &mut |ui| {
-        ui.radio_value(&mut d.pages, OcrPages::All, crate::i18n::tr(ui, "All pages"));
-        ui.radio_value(&mut d.pages, OcrPages::Current, crate::i18n::tr(ui, "Current page"));
+        ui.radio_value(&mut d.pages, OcrPages::All, tl!("All pages"));
+        ui.radio_value(&mut d.pages, OcrPages::Current, tl!("Current page"));
         ui.horizontal(|ui| {
-            ui.radio_value(&mut d.pages, OcrPages::Range, crate::i18n::tr(ui, "From"));
+            ui.radio_value(&mut d.pages, OcrPages::Range, tl!("From"));
             let on = d.pages == OcrPages::Range;
             ui.add_enabled(on, egui::DragValue::new(&mut d.from).range(1..=pages));
-            ui.label(crate::i18n::tr(ui, "to"));
+            ui.label(tl!("to"));
             ui.add_enabled(on, egui::DragValue::new(&mut d.to).range(1..=pages));
         });
     });
     group(ui, "Settings", &mut |ui| {
         egui::Grid::new("ocr-settings").num_columns(2).spacing([12.0, 8.0]).show(ui, |ui| {
-            ui.label(crate::i18n::tr(ui, "Document language"));
+            ui.label(tl!("Document language"));
             let name = LANGUAGES.iter().find(|l| l.0 == d.language).map_or("English", |l| l.1);
             egui::ComboBox::from_id_salt("ocr-language").selected_text(name).width(220.0).show_ui(ui, |ui| {
                 for (code, name) in LANGUAGES {
@@ -95,17 +95,14 @@ pub(crate) fn body(ui: &mut egui::Ui, app: &mut PdfCraftApp, t: &Tokens) -> (boo
                 }
             });
             ui.end_row();
-            ui.label(crate::i18n::tr(ui, "Output"));
-            egui::ComboBox::from_id_salt("ocr-output").selected_text(crate::i18n::tr(ui, "Searchable Image (Exact)")).width(220.0).show_ui(
-                ui,
-                |ui| {
-                    let _ = ui
-                        .selectable_label(true, crate::i18n::tr(ui, "Searchable Image (Exact)"))
-                        .on_hover_text(crate::i18n::tr(ui, "Adds invisible text over each word; the page image is not changed"));
-                },
-            );
+            ui.label(tl!("Output"));
+            egui::ComboBox::from_id_salt("ocr-output").selected_text(tl!("Searchable Image (Exact)")).width(220.0).show_ui(ui, |ui| {
+                let _ = ui
+                    .selectable_label(true, tl!("Searchable Image (Exact)"))
+                    .on_hover_text(tl!("Adds invisible text over each word; the page image is not changed"));
+            });
             ui.end_row();
-            ui.label(crate::i18n::tr(ui, "Downsample to"));
+            ui.label(tl!("Downsample to"));
             egui::ComboBox::from_id_salt("ocr-dpi").selected_text(format!("{} dpi", d.dpi)).width(220.0).show_ui(ui, |ui| {
                 for v in [600, 300, 150, 72] {
                     ui.selectable_value(&mut d.dpi, v, format!("{v} dpi"));
@@ -116,12 +113,9 @@ pub(crate) fn body(ui: &mut egui::Ui, app: &mut PdfCraftApp, t: &Tokens) -> (boo
     });
     if !available {
         ui.label(
-            egui::RichText::new(crate::i18n::tr(
-                ui,
-                "Text recognition isn't installed: its models are missing (run `cargo xtask models`, or set PDFCRAFT_MODELS).",
-            ))
-            .small()
-            .color(t.text_muted),
+            egui::RichText::new(tl!("Text recognition isn't installed: its models are missing (run `cargo xtask models`, or set PDFCRAFT_MODELS)."))
+                .small()
+                .color(t.text_muted),
         );
         ui.add_space(6.0);
     }
@@ -129,10 +123,10 @@ pub(crate) fn body(ui: &mut egui::Ui, app: &mut PdfCraftApp, t: &Tokens) -> (boo
     let (mut go, mut cancel) = (false, false);
     ui.horizontal(|ui| {
         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-            if ui.add_enabled_ui(available, |ui| widgets::pill_button(ui, crate::i18n::tr(ui, "Recognize text"), true)).inner.clicked() {
+            if ui.add_enabled_ui(available, |ui| widgets::pill_button(ui, tl!("Recognize text"), true)).inner.clicked() {
                 go = true;
             }
-            if widgets::pill_button(ui, crate::i18n::tr(ui, "Cancel"), false).clicked() {
+            if widgets::pill_button(ui, tl!("Cancel"), false).clicked() {
                 cancel = true;
             }
         })
@@ -199,13 +193,15 @@ impl PdfCraftApp {
         #[cfg(not(target_arch = "wasm32"))]
         let dir = match &self.export_dir_override {
             Some(d) => Some(std::path::PathBuf::from(d)),
-            None => rfd::FileDialog::new().set_title(self.language.tr("Choose a folder for the searchable files").to_string()).pick_folder(),
+            None => rfd::FileDialog::new().set_title(tl!("Choose a folder for the searchable files").to_string()).pick_folder(),
         };
         #[cfg(not(target_arch = "wasm32"))]
         let Some(dir) = dir else { return };
         let p = progress.clone();
-        let lang = self.language;
+        // The summary is written on the worker thread: draw it in the UI's language.
+        let lang = crate::i18n::current();
         let work = move || {
+            crate::i18n::set_current(lang);
             let (mut ok, mut words, mut failed) = (0, 0, Vec::new());
             match pdfcraft_engine::ocr::engine() {
                 Err(e) => failed.push(e),
@@ -227,19 +223,19 @@ impl PdfCraftApp {
                                 ok += 1;
                                 words += n;
                             }
-                            Err(e) => failed.push(format!("{name}: {}", lang.diagnostic(&e))),
+                            Err(e) => failed.push(format!("{name}: {}", e)),
                         }
                     }
                 }
             }
             let done = if ok == 1 {
-                crate::i18n::tr_template(lang, "Recognized {w} words in 1 file", &[("w", &words.to_string())])
+                crate::i18n::fmt(tl!("Recognized {w} words in 1 file"), &[("w", &words.to_string())])
             } else {
-                crate::i18n::tr_template(lang, "Recognized {w} words in {n} files", &[("w", &words.to_string()), ("n", &ok.to_string())])
+                crate::i18n::fmt(tl!("Recognized {w} words in {n} files"), &[("w", &words.to_string()), ("n", &ok.to_string())])
             };
             let mut msg = done;
             if !failed.is_empty() {
-                msg.push_str(&crate::i18n::tr_template(lang, "; failed: {list}", &[("list", &failed.join("; "))]));
+                msg.push_str(&crate::i18n::fmt(tl!("; failed: {list}"), &[("list", &failed.join("; "))]));
             }
             if let Ok(mut s) = p.lock() {
                 s.done = s.total;
@@ -277,9 +273,8 @@ impl PdfCraftApp {
                     self.notify(m);
                 }
                 Some(Err((done, total))) => {
-                    let m = crate::i18n::tr_template(
-                        self.language,
-                        "Recognizing text… file {d} of {t}",
+                    let m = crate::i18n::fmt(
+                        tl!("Recognizing text… file {d} of {t}"),
                         &[("d", &(done + 1).min(total.max(1)).to_string()), ("t", &total.max(1).to_string())],
                     );
                     if self.toast.as_ref().is_none_or(|t| t.0 != m) {
@@ -296,9 +291,8 @@ impl PdfCraftApp {
         let (doc, progress) = (run.doc, run.progress.clone());
         let Ok(mut s) = progress.lock() else { return };
         let Some(result) = s.result.take() else {
-            let msg = crate::i18n::tr_template(
-                self.language,
-                "Recognizing text… page {d} of {t}",
+            let msg = crate::i18n::fmt(
+                tl!("Recognizing text… page {d} of {t}"),
                 &[("d", &(s.done + 1).min(s.total.max(1)).to_string()), ("t", &s.total.max(1).to_string())],
             );
             drop(s);
@@ -329,21 +323,17 @@ impl PdfCraftApp {
                     view.document_changed(&info);
                 }
                 let words_part = if words == 1 {
-                    crate::i18n::tr_template(self.language, "Recognized 1 word", &[])
+                    crate::i18n::fmt(tl!("Recognized 1 word"), &[])
                 } else {
-                    crate::i18n::tr_template(self.language, "Recognized {n} words", &[("n", &words.to_string())])
+                    crate::i18n::fmt(tl!("Recognized {n} words"), &[("n", &words.to_string())])
                 };
-                let pages_part = if read == 1 {
-                    self.language.tr("1 page").to_string()
-                } else {
-                    crate::i18n::tr_template(self.language, "{n} pages", &[("n", &read.to_string())])
-                };
-                let mut msg = crate::i18n::tr_template(self.language, "{words} on {pages}", &[("words", &words_part), ("pages", &pages_part)]);
+                let pages_part = if read == 1 { tl!("1 page").to_string() } else { crate::i18n::fmt(tl!("{n} pages"), &[("n", &read.to_string())]) };
+                let mut msg = crate::i18n::fmt(tl!("{words} on {pages}"), &[("words", &words_part), ("pages", &pages_part)]);
                 if skipped > 0 {
                     msg.push_str(&if skipped == 1 {
-                        crate::i18n::tr_template(self.language, "; 1 page already had text", &[])
+                        crate::i18n::fmt(tl!("; 1 page already had text"), &[])
                     } else {
-                        crate::i18n::tr_template(self.language, "; {n} pages already had text", &[("n", &skipped.to_string())])
+                        crate::i18n::fmt(tl!("; {n} pages already had text"), &[("n", &skipped.to_string())])
                     });
                 }
                 self.notify(msg);

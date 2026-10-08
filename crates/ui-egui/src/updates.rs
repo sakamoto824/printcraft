@@ -120,27 +120,26 @@ pub(crate) fn dialog(app: &mut PdfCraftApp, ctx: &egui::Context) {
         ui.set_width(420.0);
         ui.horizontal(|ui| {
             ui.add(crate::icons::image("cloud", 22.0, t.accent));
-            ui.label(egui::RichText::new(crate::i18n::tr(ui, "Check for updates")).font(theme::semibold(16.0)));
+            ui.label(egui::RichText::new(tl!("Check for updates")).font(theme::semibold(16.0)));
         });
         ui.add_space(8.0);
         match &app.updates.check {
             Check::Idle => {
-                ui.label(crate::i18n::tr(ui, "No check has run yet."));
+                ui.label(tl!("No check has run yet."));
             }
             #[cfg(not(target_arch = "wasm32"))]
             Check::Running(_) => {
                 ui.horizontal(|ui| {
                     ui.spinner();
-                    ui.label(crate::i18n::tr(ui, "Checking for a newer version…"));
+                    ui.label(tl!("Checking for a newer version…"));
                 });
             }
             Check::Done(Ok(r)) if is_newer(&r.version, current) => {
                 let version = r.version.trim_start_matches(['v', 'V']);
-                ui.label(egui::RichText::new(crate::i18n::tr_fmt(ui, "PdfCraft {v} is available.", &[("v", version)])).strong());
+                ui.label(egui::RichText::new(crate::i18n::fmt(tl!("PdfCraft {v} is available."), &[("v", version)])).strong());
                 ui.label(
-                    egui::RichText::new(crate::i18n::tr_fmt(
-                        ui,
-                        "You have version {c}. Download the new version from its release page.",
+                    egui::RichText::new(crate::i18n::fmt(
+                        tl!("You have version {c}. Download the new version from its release page."),
                         &[("c", current)],
                     ))
                     .color(t.text_muted),
@@ -148,14 +147,13 @@ pub(crate) fn dialog(app: &mut PdfCraftApp, ctx: &egui::Context) {
                 download = Some(r.url.clone());
             }
             Check::Done(Ok(_)) => {
-                ui.label(crate::i18n::tr_fmt(ui, "PdfCraft {c} is up to date.", &[("c", current)]));
+                ui.label(crate::i18n::fmt(tl!("PdfCraft {c} is up to date."), &[("c", current)]));
             }
             Check::Done(Err(e)) => {
-                ui.label(crate::i18n::tr_fmt(ui, "Couldn't check for updates: {e}", &[("e", &e.to_string())]));
+                ui.label(crate::i18n::fmt(tl!("Couldn't check for updates: {e}"), &[("e", &e.to_string())]));
                 ui.label(
-                    egui::RichText::new(crate::i18n::tr_fmt(
-                        ui,
-                        "You have version {c}. All releases are listed at {page}.",
+                    egui::RichText::new(crate::i18n::fmt(
+                        tl!("You have version {c}. All releases are listed at {page}."),
                         &[("c", current), ("page", RELEASES_PAGE)],
                     ))
                     .color(t.text_muted),
@@ -164,18 +162,18 @@ pub(crate) fn dialog(app: &mut PdfCraftApp, ctx: &egui::Context) {
         }
         ui.add_space(10.0);
         ui.label(
-            egui::RichText::new(crate::i18n::tr(ui, "Asks GitHub for the latest release. Nothing is downloaded or installed automatically."))
+            egui::RichText::new(tl!("Asks GitHub for the latest release. Nothing is downloaded or installed automatically."))
                 .color(t.text_muted)
                 .small(),
         );
         ui.add_space(12.0);
         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
             if let Some(url) = download.take() {
-                let get = widgets::pill_button(ui, crate::i18n::tr(ui, "Download"), true).clicked();
-                let later = widgets::pill_button(ui, crate::i18n::tr(ui, "Later"), false).clicked();
+                let get = widgets::pill_button(ui, tl!("Download"), true).clicked();
+                let later = widgets::pill_button(ui, tl!("Later"), false).clicked();
                 close = get || later;
                 download = get.then_some(url);
-            } else if widgets::pill_button(ui, crate::i18n::tr(ui, "Close"), true).clicked() {
+            } else if widgets::pill_button(ui, tl!("Close"), true).clicked() {
                 close = true;
             }
         });

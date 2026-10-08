@@ -7,6 +7,13 @@
 
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
 
+/// Translate an English UI string into the current language (see [`i18n`]).
+macro_rules! tl {
+    ($s:expr) => {
+        $crate::i18n::t($s)
+    };
+}
+
 mod a11y_ui;
 mod actions_ui;
 pub mod canvas;
@@ -295,7 +302,8 @@ pub struct PdfCraftApp {
     /// Comment author, per-tool colours and widths, pin.
     pub comment_prefs: comments::CommentPrefs,
     pub theme: ThemeKind,
-    pub language: i18n::Language,
+    /// Interface language preference: `auto` (follow the system) or a code from [`i18n::LANGUAGES`].
+    pub language: String,
     /// Follow the operating system's light/dark setting.
     pub follow_system_theme: bool,
     pub dialog: Option<Dialog>,
@@ -471,7 +479,7 @@ impl PdfCraftApp {
             quick_tool: QuickTool::Select,
             comment_prefs: Default::default(),
             theme: ThemeKind::Light,
-            language: i18n::Language::default(),
+            language: i18n::AUTO.to_string(),
             follow_system_theme: false,
             dialog: None,
             update_source: None,
@@ -753,7 +761,7 @@ impl PdfCraftApp {
         #[cfg(not(target_arch = "wasm32"))]
         if let Some(p) = rfd::FileDialog::new()
             .add_filter("PDF", &["pdf"])
-            .add_filter(self.language.tr("Images and text (converted to PDF)"), &create_ui::CONVERTIBLE)
+            .add_filter(tl!("Images and text (converted to PDF)"), &create_ui::CONVERTIBLE)
             .pick_file()
         {
             self.open_path(&p.to_string_lossy());
@@ -762,11 +770,10 @@ impl PdfCraftApp {
         #[cfg(target_arch = "wasm32")]
         {
             let inbox = self.inbox.clone();
-            let language = self.language;
             wasm_bindgen_futures::spawn_local(async move {
                 if let Some(h) = rfd::AsyncFileDialog::new()
                     .add_filter("PDF", &["pdf"])
-                    .add_filter(language.tr("Images and text"), &create_ui::CONVERTIBLE)
+                    .add_filter(tl!("Images and text"), &create_ui::CONVERTIBLE)
                     .pick_file()
                     .await
                 {
@@ -819,16 +826,18 @@ impl PdfCraftApp {
 
     /// Notify with a static message in the UI language.
     pub fn notify_tr(&mut self, text: &str) {
-        self.notify(self.language.tr(text).to_string());
+        self.notify(tl!(text).to_string());
     }
 
+    /// Notify with an error's own text. Engine and OS messages are not translated: matching their
+    /// English wording would break silently whenever it changes.
     pub fn notify_error(&mut self, error: impl std::fmt::Display) {
-        self.notify(self.language.diagnostic(&error.to_string()));
+        self.notify(error.to_string());
     }
 
-    /// Notify with a `{name}`-style template in the UI language.
+    /// Notify with a `{name}`-style template in the UI language (placeholders filled once).
     pub fn notify_fmt(&mut self, template: &str, args: &[(&str, &str)]) {
-        self.notify(i18n::tr_template(self.language, template, args));
+        self.notify(i18n::fmt(tl!(template), args));
     }
 
     pub fn set_theme(&mut self, ctx: &egui::Context, kind: ThemeKind) {
@@ -848,11 +857,11 @@ impl PdfCraftApp {
             .flat_map(|g| g.sections.iter().flat_map(|s| s.items.iter()))
             .find(|i| i.command == command)
             .map(|i| match i.availability {
-                pdfcraft_engine::catalog::Availability::Planned(m) => i18n::tr_template(self.language, "ships in milestone {m}", &[("m", m)]),
-                pdfcraft_engine::catalog::Availability::Provider => self.language.tr("needs an AI provider (off by default)").to_string(),
-                pdfcraft_engine::catalog::Availability::Ready => self.language.tr("is available").to_string(),
+                pdfcraft_engine::catalog::Availability::Planned(m) => crate::i18n::fmt(tl!("ships in milestone {m}"), &[("m", m)]),
+                pdfcraft_engine::catalog::Availability::Provider => tl!("needs an AI provider (off by default)").to_string(),
+                pdfcraft_engine::catalog::Availability::Ready => tl!("is available").to_string(),
             })
-            .unwrap_or_else(|| self.language.tr("is not available yet").to_string());
+            .unwrap_or_else(|| tl!("is not available yet").to_string());
         self.notify_fmt("`{command}` {when}", &[("command", command), ("when", &when)]);
     }
 
@@ -890,8 +899,8 @@ impl PdfCraftApp {
         if let Ok(t) = serde_json::from_value::<ThemeKind>(v["theme"].clone()) {
             self.theme = t;
         }
-        if let Ok(language) = serde_json::from_value::<i18n::Language>(v["language"].clone()) {
-            self.language = language;
+        if let Some(language) = v["language"].as_str().and_then(i18n::normalize_pref) {
+            self.language = language.to_string();
         }
         // An empty or missing name keeps the login-name default; settings are untrusted, so the
         // name is cut to a sane length.
@@ -935,10 +944,11 @@ impl PdfCraftApp {
         let view = self.active.and_then(|i| self.views.get_mut(i));
         match (key, view) {
             ("language", _) => {
-                self.language = i18n::Language::parse(value).ok_or("language must be en or ja")?;
-                if let Some(ctx) = &self.ctx {
-                    self.language.store(ctx);
-                }
+                let language = i18n::normalize_pref(value).ok_or_else(|| {
+                    let codes: Vec<&str> = std::iter::once(i18n::AUTO).chain(i18n::Lang::all().map(i18n::Lang::code)).collect();
+                    format!("language must be one of {}", codes.join(", "))
+                })?;
+                self.language = language.to_string();
             }
             ("theme", _) => {
                 self.follow_system_theme = value == "system";
@@ -1151,11 +1161,11 @@ impl eframe::App for PdfCraftApp {
 
     fn logic(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         self.ctx = Some(ctx.clone());
-        self.language.store(ctx);
+        // Notices raised outside `ui` (opened files, OS events, the control channel) translate too.
+        i18n::set_current(i18n::Lang::from_pref(&self.language));
         if !self.styled {
             egui_extras::install_image_loaders(ctx);
             theme::install_fonts(ctx);
-            self.language.store(ctx);
             theme::apply(ctx, self.theme);
             self.styled = true;
         } else {
@@ -1217,6 +1227,7 @@ impl eframe::App for PdfCraftApp {
 
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         let ctx = ui.ctx().clone();
+        i18n::set_current(i18n::Lang::from_pref(&self.language));
         // Fonts registered via set_fonts only take effect next frame; named families would panic now.
         if !self.fonts_ready {
             ctx.request_repaint();

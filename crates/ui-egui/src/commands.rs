@@ -32,35 +32,34 @@ impl PdfCraftApp {
     fn execute_unguarded(&mut self, id: &str) -> bool {
         let Some(spec) = commands::command(id) else { return false };
         if !self.command_enabled(spec) {
-            let lang = self.language;
             let why = match spec.needs {
-                commands::Needs::Undo => lang.tr("Nothing to undo").to_string(),
-                commands::Needs::Redo => lang.tr("Nothing to redo").to_string(),
-                commands::Needs::FillForms if self.active.is_some() => lang.tr("This document has no form fields you can fill in").to_string(),
-                commands::Needs::HasComments if self.active.is_some() => lang.tr("This document has no comments to flatten").to_string(),
-                commands::Needs::HasFields if self.active.is_some() => lang.tr("This document has no form fields to flatten").to_string(),
+                commands::Needs::Undo => tl!("Nothing to undo").to_string(),
+                commands::Needs::Redo => tl!("Nothing to redo").to_string(),
+                commands::Needs::FillForms if self.active.is_some() => tl!("This document has no form fields you can fill in").to_string(),
+                commands::Needs::HasComments if self.active.is_some() => tl!("This document has no comments to flatten").to_string(),
+                commands::Needs::HasFields if self.active.is_some() => tl!("This document has no form fields to flatten").to_string(),
                 commands::Needs::HasRedactions if self.active.is_some() => {
-                    lang.tr("There are no redaction marks (mark text, areas or pages first)").to_string()
+                    tl!("There are no redaction marks (mark text, areas or pages first)").to_string()
                 }
                 commands::Needs::Marks(k) if self.active.is_some() => {
                     let kind = match k {
-                        pdfcraft_engine::MarkKind::HeaderFooter => lang.tr("header or footer"),
-                        pdfcraft_engine::MarkKind::Watermark => lang.tr("watermark"),
-                        pdfcraft_engine::MarkKind::Background => lang.tr("background"),
+                        pdfcraft_engine::MarkKind::HeaderFooter => tl!("header or footer"),
+                        pdfcraft_engine::MarkKind::Watermark => tl!("watermark"),
+                        pdfcraft_engine::MarkKind::Background => tl!("background"),
                     };
-                    crate::i18n::tr_template(lang, "This document has no {kind} to change", &[("kind", kind)])
+                    crate::i18n::fmt(tl!("This document has no {kind} to change"), &[("kind", kind)])
                 }
                 commands::Needs::Security | commands::Needs::ProtectedSecurity if self.active.is_some() => {
                     if self.active_ids().and_then(|(_, id)| self.session.get(id)).is_some_and(|d| d.allows_security_change()) {
-                        lang.tr("This document isn't password-protected").to_string()
+                        tl!("This document isn't password-protected").to_string()
                     } else {
-                        lang.tr("Only the document's owner can change its security (open it with the permissions password)").to_string()
+                        tl!("Only the document's owner can change its security (open it with the permissions password)").to_string()
                     }
                 }
                 commands::Needs::Assembly | commands::Needs::Modification | commands::Needs::Annotate if self.active.is_some() => {
-                    lang.tr("The document's security settings don't allow this change").to_string()
+                    tl!("The document's security settings don't allow this change").to_string()
                 }
-                _ => lang.tr("Open a document first").to_string(),
+                _ => tl!("Open a document first").to_string(),
             };
             self.notify(why);
             return false;
@@ -151,13 +150,7 @@ impl PdfCraftApp {
                         let style = self.comment_prefs.style(tool);
                         let author = self.comment_prefs.author.clone();
                         let shape = pdfcraft_engine::Shape::TextMarkup { kind, quads };
-                        self.apply_edit(Edit::AddAnnotation(pdfcraft_engine::NewAnnotation {
-                            page,
-                            shape,
-                            style,
-                            contents: String::new(),
-                            author,
-                        }));
+                        self.apply_edit(Edit::AddAnnotation(pdfcraft_engine::NewAnnotation { page, shape, style, contents: String::new(), author }));
                     }
                 }
             }
@@ -422,10 +415,7 @@ impl PdfCraftApp {
                 if let Some(i) = active {
                     self.views[i].forms.focus = None;
                 }
-                self.notify_fmt(
-                    "Click on the page to add a {tool}, or drag to set its size",
-                    &[("tool", &self.language.tr(tool.label()).to_lowercase())],
-                );
+                self.notify_fmt("Click on the page to add a {tool}, or drag to set its size", &[("tool", &tl!(tool.label()).to_lowercase())]);
             }
             fill if crate::fill_sign::FillTool::from_command(fill).is_some() => {
                 let Some(tool) = crate::fill_sign::FillTool::from_command(fill) else { return false };
@@ -504,7 +494,7 @@ pub(crate) fn registry_menu(app: &mut PdfCraftApp, ui: &mut egui::Ui, menu: &str
     let mac = cfg!(target_os = "macos") || cfg!(target_arch = "wasm32");
     for spec in commands::menu(menu) {
         let label = commands::current_label(spec, &app.session, app.active_ids().map(|(_, id)| id));
-        let label = app.language.command_label(&label);
+        let label = crate::i18n::menu_label(spec.id, &label);
         let shortcut = spec.shortcut.map(|s| s.label(mac)).unwrap_or_default();
         let enabled = app.command_enabled(spec);
         let resp = ui.add_enabled(enabled, egui::Button::new(label).shortcut_text(shortcut));

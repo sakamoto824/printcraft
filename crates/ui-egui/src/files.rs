@@ -230,16 +230,16 @@ impl PdfCraftApp {
                     }
                 }
             }
-            if self.write_files(&named, self.language.tr("Choose a folder for the extracted pages")) == 0 {
+            if self.write_files(&named, tl!("Choose a folder for the extracted pages")) == 0 {
                 return;
             }
         } else {
             match self.session.extract(id, &pages) {
                 Ok(bytes) => {
                     let message = if pages.len() == 1 {
-                        self.language.tr("Extracted 1 page").to_string()
+                        tl!("Extracted 1 page").to_string()
                     } else {
-                        crate::i18n::tr_template(self.language, "Extracted {n} pages", &[("n", &pages.len().to_string())])
+                        crate::i18n::fmt(tl!("Extracted {n} pages"), &[("n", &pages.len().to_string())])
                     };
                     self.open_created(&format!("{stem} (extract).pdf"), bytes, &message)
                 }
@@ -384,8 +384,8 @@ impl PdfCraftApp {
                 Some(p) if [".xfdf", ".fdf", ".xml", ".csv", ".txt"].iter().any(|e| p.ends_with(e)) => Some(std::path::PathBuf::from(p)),
                 Some(_) => None,
                 None => rfd::FileDialog::new()
-                    .add_filter(self.language.tr("Comment and form data").to_string(), &["xfdf", "fdf", "xml", "csv", "txt"])
-                    .set_title(self.language.tr("Import data").to_string())
+                    .add_filter(tl!("Comment and form data").to_string(), &["xfdf", "fdf", "xml", "csv", "txt"])
+                    .set_title(tl!("Import data").to_string())
                     .pick_file(),
             };
             let Some(path) = picked else { return };
@@ -414,7 +414,7 @@ impl PdfCraftApp {
             let path = match self.save_override.clone() {
                 Some(p) => Some(std::path::PathBuf::from(p)),
                 None => rfd::FileDialog::new()
-                    .set_title(self.language.tr("Export").to_string())
+                    .set_title(tl!("Export").to_string())
                     .add_filter(ext.to_uppercase(), &[ext])
                     .set_file_name(format!("{stem}.{ext}"))
                     .save_file(),
@@ -437,8 +437,8 @@ impl PdfCraftApp {
         #[cfg(not(target_arch = "wasm32"))]
         {
             let paths = rfd::FileDialog::new()
-                .set_title(self.language.tr("Select data files to merge").to_string())
-                .add_filter(self.language.tr("Form data and PDF forms").to_string(), &["fdf", "xfdf", "pdf"])
+                .set_title(tl!("Select data files to merge").to_string())
+                .add_filter(tl!("Form data and PDF forms").to_string(), &["fdf", "xfdf", "pdf"])
                 .pick_files()
                 .unwrap_or_default();
             let mut files = Vec::new();
@@ -468,7 +468,7 @@ impl PdfCraftApp {
             let path = match self.save_override.clone() {
                 Some(p) => Some(std::path::PathBuf::from(p)),
                 None => rfd::FileDialog::new()
-                    .set_title(self.language.tr("Save the spreadsheet").to_string())
+                    .set_title(tl!("Save the spreadsheet").to_string())
                     .add_filter("CSV", &["csv"])
                     .set_file_name("report.csv")
                     .save_file(),
@@ -498,7 +498,7 @@ impl PdfCraftApp {
             let path = match self.save_override.clone() {
                 Some(p) => Some(std::path::PathBuf::from(p)),
                 None => {
-                    let title = if comments { self.language.tr("Export comments") } else { self.language.tr("Export form data") };
+                    let title = if comments { tl!("Export comments") } else { tl!("Export form data") };
                     let d = rfd::FileDialog::new().set_title(title).set_file_name(format!("{stem}.xfdf"));
                     let d = if comments {
                         d.add_filter("XFDF", &["xfdf"]).add_filter("FDF", &["fdf"])
@@ -507,7 +507,7 @@ impl PdfCraftApp {
                             .add_filter("FDF", &["fdf"])
                             .add_filter("XML", &["xml"])
                             .add_filter("CSV", &["csv"])
-                            .add_filter(self.language.tr("Text").to_string(), &["txt"])
+                            .add_filter(tl!("Text").to_string(), &["txt"])
                     };
                     d.save_file()
                 }

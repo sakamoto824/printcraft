@@ -289,7 +289,7 @@ pub(crate) fn editor(ctx: &egui::Context, view: &mut DocView, info: &DocInfo, ad
                     .desired_rows(1)
                     .background_color(Color32::from_rgba_unmultiplied(255, 255, 255, 235))
                     .text_color(Color32::from_rgb(cr, cg, cb))
-                    .hint_text(crate::i18n::tr(ui, "Type text"))
+                    .hint_text(tl!("Type text"))
                     .id_salt("added-text-edit"),
             );
             if t.focus {
@@ -350,7 +350,7 @@ fn finish(cv: &mut ContentView, d: TextDraft, added: &[Added]) -> Option<Edit> {
 /// Returns the changed style; for a selected item the caller turns it into an update.
 pub(crate) fn format_panel(ui: &mut egui::Ui, t: &Tokens, style: &AddedText) -> Option<AddedText> {
     let mut s = style.clone();
-    widgets::section_title(ui, crate::i18n::tr(ui, "Format text"));
+    widgets::section_title(ui, tl!("Format text"));
     ui.horizontal(|ui| {
         egui::ComboBox::from_id_salt("font-family").selected_text(s.family.label()).width(110.0).show_ui(ui, |ui| {
             for f in [FontFamily::Helvetica, FontFamily::Times, FontFamily::Courier] {
@@ -365,18 +365,18 @@ pub(crate) fn format_panel(ui: &mut egui::Ui, t: &Tokens, style: &AddedText) -> 
         });
     });
     ui.horizontal(|ui| {
-        if ui.selectable_label(s.bold, egui::RichText::new("B").strong()).on_hover_text(crate::i18n::tr(ui, "Bold")).clicked() {
+        if ui.selectable_label(s.bold, egui::RichText::new("B").strong()).on_hover_text(tl!("Bold")).clicked() {
             s.bold = !s.bold;
         }
-        if ui.selectable_label(s.italic, egui::RichText::new("I").italics()).on_hover_text(crate::i18n::tr(ui, "Italic")).clicked() {
+        if ui.selectable_label(s.italic, egui::RichText::new("I").italics()).on_hover_text(tl!("Italic")).clicked() {
             s.italic = !s.italic;
         }
         ui.separator();
         for (a, icon, tip) in [
-            (TextAlign::Left, "align-left", crate::i18n::tr(ui, "Align left")),
-            (TextAlign::Center, "align-center", crate::i18n::tr(ui, "Centre")),
-            (TextAlign::Right, "align-right", crate::i18n::tr(ui, "Align right")),
-            (TextAlign::Justify, "align-justify", crate::i18n::tr(ui, "Justify")),
+            (TextAlign::Left, "align-left", tl!("Align left")),
+            (TextAlign::Center, "align-center", tl!("Centre")),
+            (TextAlign::Right, "align-right", tl!("Align right")),
+            (TextAlign::Justify, "align-justify", tl!("Justify")),
         ] {
             if crate::icons::button(ui, icon, 26.0, s.align == a, tip).clicked() {
                 s.align = a;
@@ -387,7 +387,7 @@ pub(crate) fn format_panel(ui: &mut egui::Ui, t: &Tokens, style: &AddedText) -> 
     if let Some(picked) = crate::comments::swatch_grid(ui, Some(c)) {
         s.color = picked;
     }
-    ui.label(egui::RichText::new(crate::i18n::tr(ui, "Standard fonts; text outside Windows-1252 isn't supported yet.")).small().color(t.text_faint));
+    ui.label(egui::RichText::new(tl!("Standard fonts; text outside Windows-1252 isn't supported yet.")).small().color(t.text_faint));
     (s != *style).then_some(s)
 }
 
@@ -395,7 +395,7 @@ pub(crate) fn format_panel(ui: &mut egui::Ui, t: &Tokens, style: &AddedText) -> 
 pub(crate) fn hint(ui: &mut egui::Ui, t: &Tokens) {
     ui.label(
         egui::RichText::new(
-            crate::i18n::tr(ui, "Click on the page to add text; each click starts a new box, and ✓ finishes. Drag items to move them, drag a corner to resize, double-click text to edit it."),
+            tl!("Click on the page to add text; each click starts a new box, and ✓ finishes. Drag items to move them, drag a corner to resize, double-click text to edit it."),
         )
             .small()
             .color(t.text_faint),
@@ -413,8 +413,8 @@ impl crate::PdfCraftApp {
                 // Tests and automation set `save_override` and never see a native dialog.
                 Some(_) => None,
                 None => rfd::FileDialog::new()
-                    .add_filter(self.language.tr("Images").to_string(), &["png", "jpg", "jpeg", "tif", "tiff", "gif", "bmp", "jp2", "j2k", "jpx"])
-                    .set_title(self.language.tr("Choose an image"))
+                    .add_filter(tl!("Images").to_string(), &["png", "jpg", "jpeg", "tif", "tiff", "gif", "bmp", "jp2", "j2k", "jpx"])
+                    .set_title(tl!("Choose an image"))
                     .pick_file(),
             };
             let Some(path) = picked else { return };
@@ -438,8 +438,8 @@ impl crate::PdfCraftApp {
                 Some(p) if p.ends_with(".png") || p.ends_with(".jpg") => Some(std::path::PathBuf::from(p)),
                 Some(_) => None,
                 None => rfd::FileDialog::new()
-                    .add_filter(self.language.tr("Images"), &["png", "jpg", "jpeg", "tif", "tiff", "gif", "bmp", "jp2", "j2k", "jpx"])
-                    .set_title(self.language.tr("Replace image"))
+                    .add_filter(tl!("Images"), &["png", "jpg", "jpeg", "tif", "tiff", "gif", "bmp", "jp2", "j2k", "jpx"])
+                    .set_title(tl!("Replace image"))
                     .pick_file(),
             };
             let Some(path) = picked else { return };
@@ -483,8 +483,8 @@ impl crate::PdfCraftApp {
                 Some(p) if p.ends_with(".png") || p.ends_with(".jpg") => Some(std::path::PathBuf::from(p)),
                 Some(_) => None,
                 None => rfd::FileDialog::new()
-                    .add_filter(self.language.tr("Images"), &["png", "jpg", "jpeg", "tif", "tiff", "gif", "bmp", "jp2", "j2k", "jpx"])
-                    .set_title(self.language.tr("Select Icon"))
+                    .add_filter(tl!("Images"), &["png", "jpg", "jpeg", "tif", "tiff", "gif", "bmp", "jp2", "j2k", "jpx"])
+                    .set_title(tl!("Select Icon"))
                     .pick_file(),
             };
             let Some(path) = picked else { return };
@@ -507,8 +507,8 @@ impl crate::PdfCraftApp {
                 Some(p) if p.ends_with(".png") || p.ends_with(".jpg") => Some(std::path::PathBuf::from(p)),
                 Some(_) => None,
                 None => rfd::FileDialog::new()
-                    .add_filter(self.language.tr("Images"), &["png", "jpg", "jpeg", "tif", "tiff", "gif", "bmp", "jp2", "j2k", "jpx"])
-                    .set_title(self.language.tr("Replace image"))
+                    .add_filter(tl!("Images"), &["png", "jpg", "jpeg", "tif", "tiff", "gif", "bmp", "jp2", "j2k", "jpx"])
+                    .set_title(tl!("Replace image"))
                     .pick_file(),
             };
             let Some(path) = picked else { return };
@@ -549,7 +549,7 @@ pub(crate) enum ImageAction {
 /// Edit image: rotate, flip, crop, replace (shown while an added image is selected).
 pub(crate) fn image_panel(ui: &mut egui::Ui, t: &Tokens, img: &pdfcraft_engine::AddedImage) -> Option<ImageAction> {
     let mut out = None;
-    widgets::section_title(ui, crate::i18n::tr(ui, "Edit image"));
+    widgets::section_title(ui, tl!("Edit image"));
     ui.horizontal(|ui| {
         let mut i = img.clone();
         let r = i.rect;
@@ -559,27 +559,27 @@ pub(crate) fn image_panel(ui: &mut egui::Ui, t: &Tokens, img: &pdfcraft_engine::
             let (cx, cy, w, h) = ((r[0] + r[2]) / 2.0, (r[1] + r[3]) / 2.0, r[2] - r[0], r[3] - r[1]);
             i.rect = [cx - h / 2.0, cy - w / 2.0, cx + h / 2.0, cy + w / 2.0];
         };
-        if crate::icons::button(ui, "rotate-ccw", 28.0, false, crate::i18n::tr(ui, "Rotate counterclockwise")).clicked() {
+        if crate::icons::button(ui, "rotate-ccw", 28.0, false, tl!("Rotate counterclockwise")).clicked() {
             turn(&mut i, 1);
             out = Some(ImageAction::Update(AddedContent::Image(i.clone())));
         }
-        if crate::icons::button(ui, "rotate-cw", 28.0, false, crate::i18n::tr(ui, "Rotate clockwise")).clicked() {
+        if crate::icons::button(ui, "rotate-cw", 28.0, false, tl!("Rotate clockwise")).clicked() {
             turn(&mut i, 3);
             out = Some(ImageAction::Update(AddedContent::Image(i.clone())));
         }
-        if crate::icons::button(ui, "flip-horizontal-2", 28.0, false, crate::i18n::tr(ui, "Flip horizontal")).clicked() {
+        if crate::icons::button(ui, "flip-horizontal-2", 28.0, false, tl!("Flip horizontal")).clicked() {
             i.flip_h = !i.flip_h;
             out = Some(ImageAction::Update(AddedContent::Image(i.clone())));
         }
-        if crate::icons::button(ui, "flip-vertical-2", 28.0, false, crate::i18n::tr(ui, "Flip vertical")).clicked() {
+        if crate::icons::button(ui, "flip-vertical-2", 28.0, false, tl!("Flip vertical")).clicked() {
             i.flip_v = !i.flip_v;
             out = Some(ImageAction::Update(AddedContent::Image(i.clone())));
         }
-        if crate::icons::button(ui, "replace", 28.0, false, crate::i18n::tr(ui, "Replace image")).clicked() {
+        if crate::icons::button(ui, "replace", 28.0, false, tl!("Replace image")).clicked() {
             out = Some(ImageAction::Replace);
         }
     });
-    ui.label(egui::RichText::new(crate::i18n::tr(ui, "Crop (% trimmed from each side)")).small().color(t.text_muted));
+    ui.label(egui::RichText::new(tl!("Crop (% trimmed from each side)")).small().color(t.text_muted));
     let mut crop = img.crop.map(|v| (v * 100.0).round());
     let mut changed = false;
     ui.horizontal(|ui| {

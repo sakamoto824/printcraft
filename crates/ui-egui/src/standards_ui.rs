@@ -35,15 +35,11 @@ impl PdfCraftApp {
             self.pdfa_verify();
             let left = self.pdfa.issues.as_ref().map_or(0, Vec::len);
             self.notify(if left == 0 {
-                crate::i18n::tr_template(
-                    self.language,
-                    "The document now conforms to {level}; save it to keep the changes",
-                    &[("level", level.label())],
-                )
+                crate::i18n::fmt(tl!("The document now conforms to {level}; save it to keep the changes"), &[("level", level.label())])
             } else if left == 1 {
-                crate::i18n::tr_template(self.language, "Fixed what could be fixed; 1 problem remains", &[])
+                crate::i18n::fmt(tl!("Fixed what could be fixed; 1 problem remains"), &[])
             } else {
-                crate::i18n::tr_template(self.language, "Fixed what could be fixed; {n} problems remain", &[("n", &left.to_string())])
+                crate::i18n::fmt(tl!("Fixed what could be fixed; {n} problems remain"), &[("n", &left.to_string())])
             });
         }
     }
@@ -54,18 +50,17 @@ pub(crate) fn body(ui: &mut egui::Ui, app: &mut PdfCraftApp, t: &Tokens) -> bool
     ui.label(egui::RichText::new("PDF/A").font(theme::semibold(18.0)));
     ui.add_space(6.0);
     let declared = app.active_ids().and_then(|(_, id)| app.session.get(id)).map(|d| d.standards()).unwrap_or_default();
-    let shown = declared.pdfa.as_ref().map_or(crate::i18n::tr(ui, "none").to_string(), |(p, c)| format!("PDF/A-{p}{}", c.to_lowercase()));
-    ui.label(crate::i18n::tr_fmt(ui, "Declared conformance: {shown}", &[("shown", &shown)]));
+    let shown = declared.pdfa.as_ref().map_or(tl!("none").to_string(), |(p, c)| format!("PDF/A-{p}{}", c.to_lowercase()));
+    ui.label(crate::i18n::fmt(tl!("Declared conformance: {shown}"), &[("shown", &shown)]));
     if !declared.output_intents.is_empty() {
         ui.label(
-            egui::RichText::new(crate::i18n::tr_fmt(ui, "Output intent: {list}", &[("list", &declared.output_intents.join(", "))]))
-                .color(t.text_muted),
+            egui::RichText::new(crate::i18n::fmt(tl!("Output intent: {list}"), &[("list", &declared.output_intents.join(", "))])).color(t.text_muted),
         );
     }
     ui.add_space(6.0);
     let before = app.pdfa.level;
     ui.horizontal(|ui| {
-        ui.label(crate::i18n::tr(ui, "Conformance level:"));
+        ui.label(tl!("Conformance level:"));
         egui::ComboBox::from_id_salt("pdfa-level").selected_text(app.pdfa.level.label()).show_ui(ui, |ui| {
             for l in [Level::A2b, Level::A3b] {
                 ui.selectable_value(&mut app.pdfa.level, l, l.label());
@@ -82,16 +77,16 @@ pub(crate) fn body(ui: &mut egui::Ui, app: &mut PdfCraftApp, t: &Tokens) -> bool
             ui.set_min_height(120.0);
             match &app.pdfa.issues {
                 None => {
-                    ui.label(egui::RichText::new(crate::i18n::tr(ui, "Verify to see what the document needs.")).color(t.text_muted));
+                    ui.label(egui::RichText::new(tl!("Verify to see what the document needs.")).color(t.text_muted));
                 }
                 Some(v) if v.is_empty() => {
-                    ui.label(crate::i18n::tr_fmt(ui, "No problems found: the document conforms to {level}.", &[("level", app.pdfa.level.label())]));
+                    ui.label(crate::i18n::fmt(tl!("No problems found: the document conforms to {level}."), &[("level", app.pdfa.level.label())]));
                 }
                 Some(v) => {
                     for i in v {
-                        let page = i.page.map(|p| crate::i18n::tr_fmt(ui, " (page {p})", &[("p", &(p + 1).to_string())])).unwrap_or_default();
-                        let fix = if i.fixable { String::new() } else { crate::i18n::tr(ui, "  · not fixable here").to_string() };
-                        ui.label(format!("{}{page}", crate::i18n::Language::get(ui.ctx()).diagnostic(&i.message)));
+                        let page = i.page.map(|p| crate::i18n::fmt(tl!(" (page {p})"), &[("p", &(p + 1).to_string())])).unwrap_or_default();
+                        let fix = if i.fixable { String::new() } else { tl!("  · not fixable here").to_string() };
+                        ui.label(format!("{}{page}", i.message));
                         ui.label(egui::RichText::new(format!("ISO 19005 {}{fix}", i.clause)).small().color(t.text_muted));
                     }
                 }
@@ -103,13 +98,13 @@ pub(crate) fn body(ui: &mut egui::Ui, app: &mut PdfCraftApp, t: &Tokens) -> bool
     let mut action = None;
     ui.horizontal(|ui| {
         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-            if widgets::pill_button(ui, crate::i18n::tr(ui, "Save as PDF/A"), true).clicked() {
+            if widgets::pill_button(ui, tl!("Save as PDF/A"), true).clicked() {
                 action = Some(true);
             }
-            if widgets::pill_button(ui, crate::i18n::tr(ui, "Verify"), false).clicked() {
+            if widgets::pill_button(ui, tl!("Verify"), false).clicked() {
                 action = Some(false);
             }
-            if widgets::pill_button(ui, crate::i18n::tr(ui, "Close"), false).clicked() {
+            if widgets::pill_button(ui, tl!("Close"), false).clicked() {
                 close = true;
             }
         });

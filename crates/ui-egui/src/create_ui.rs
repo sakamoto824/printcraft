@@ -132,8 +132,8 @@ impl PdfCraftApp {
         #[cfg(not(target_arch = "wasm32"))]
         {
             let Some(files) = rfd::FileDialog::new()
-                .add_filter(self.language.tr("Images"), &["png", "jpg", "jpeg", "tif", "tiff", "gif", "bmp", "jp2", "j2k", "jpx"])
-                .set_title(self.language.tr("Choose images"))
+                .add_filter(tl!("Images"), &["png", "jpg", "jpeg", "tif", "tiff", "gif", "bmp", "jp2", "j2k", "jpx"])
+                .set_title(tl!("Choose images"))
                 .pick_files()
             else {
                 return;
